@@ -58,7 +58,7 @@ async def speech(model_path, input_directory, rvc_path, message, pitch=0, voice=
     communicate = tts.Communicate(message, voice)
     file_name = "test"
     input_path = os.path.join(input_directory, file_name)
-    await communicate.save()
+    await communicate.save(input_path)
     output_path = rvc_convert(model_path=model_path,
                               input_path=input_path,
                               rvc_path=rvc_path,

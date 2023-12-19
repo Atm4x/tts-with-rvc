@@ -1,6 +1,6 @@
 # **TTS-with-RVC**
 
-***TTS-with-RVC** (Text-to-Speech with ReVoice Control)* is an package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing a *ReVoice Control (RVC)* module. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support.
+***TTS-with-RVC** (Text-to-Speech with RVC)* is an package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing a *RVC* module. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support.
 
 Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 
@@ -23,7 +23,7 @@ pip install -e git+https://github.com/SunSual/rvc-tts-pipeline-fix.git#egg=rvc_t
 
 ## How it Works
 1. **Text-to-Speech (TTS):** Users enter text into the TTS module, which then processes it and generates the corresponding speech as a file saved in the entered input directory
-2. **ReVoice Control (RVC):** With .pth file provided, RVC module reads the generated audio file, processes it and generates an new audio saved in *output* directory with voice replaced.
+2. **RVC:** With .pth file provided, RVC module reads the generated audio file, processes it and generates an new audio saved in *output* directory with voice replaced.
 
 ## Usage
 

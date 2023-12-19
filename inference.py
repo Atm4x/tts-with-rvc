@@ -11,7 +11,7 @@ import hashlib
 from datetime import datetime
 
 class TTS_RVC:
-    def __init__(self, rvc_path, model_path, voice="ru-RU-DmitryNeural"):
+    def __init__(self, rvc_path, input_directory, model_path, voice="ru-RU-DmitryNeural"):
         if not os.path.exists('input'):
             os.mkdir('input')
         if not os.path.exists('output'):
@@ -19,6 +19,7 @@ class TTS_RVC:
 
         self.pool = concurrent.futures.ThreadPoolExecutor()
         self.current_voice = voice
+        self.input_directory = input_directory
         self.can_speak = True
         self.current_model = model_path
         self.rvc_path = rvc_path
@@ -29,13 +30,13 @@ class TTS_RVC:
     def get_voices(self):
         return get_voices()
 
-    def __call__(self, text, input_path, pitch=0):
+    def __call__(self, text, pitch=0):
         if not self.can_speak:
             print("TTS is busy.")
             return None
         self.can_speak = False
         path = (self.pool.submit
-                (asyncio.run, speech(self.current_model, input_path, self.rvc_path, text, pitch, self.current_voice)).result())
+                (asyncio.run, speech(self.current_model, self.rvc_path, self.input_directory, text, pitch, self.current_voice)).result())
         self.can_speak = True
         return path
 
@@ -53,10 +54,10 @@ async def get_voices():
     voicesobj = await VoicesManager.create()
     return [data["ShortName"] for data in voicesobj.voices]
 
-async def speech(model_path, input_path, rvc_path, message, pitch=0, voice="ru-RU-DmitryNeural"):
+async def speech(model_path, input_directory, rvc_path, message, pitch=0, voice="ru-RU-DmitryNeural"):
     communicate = tts.Communicate(message, voice)
     file_name = "test"
-    await communicate.save("input\\" + file_name)
+    await communicate.save(os.path.join(input_directory, file_name))
     output_path = rvc_convert(model_path=model_path,
                               input_path=input_path,
                               rvc_path=rvc_path,

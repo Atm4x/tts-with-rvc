@@ -5,5 +5,8 @@ setup(
     version='0.1.0',
     description='TTC with RVC pipeline',
     author='SunSual',
-    packages=find_packages(),
+    packages=[find_packages(), 
+              "edge-tts", 
+              "huggingface_hub"
+              ],
 )

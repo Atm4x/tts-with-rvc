@@ -55,7 +55,8 @@ print(voices)
 tts.set_voice(voices[0])
 ```
 
-This code will print all voices available and then you choose with any method you want (For example, `voices[0]`)
+This code will print all voices available and then you choose with any method you want (For example, `voices[0]`).
+
 This is necessary if you are using other languages for voiceovers!
 
 And final step is calling `tts` to replace voice:

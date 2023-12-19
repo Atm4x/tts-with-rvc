@@ -36,7 +36,12 @@ class TTS_RVC:
             return None
         self.can_speak = False
         path = (self.pool.submit
-                (asyncio.run, speech(self.current_model, self.rvc_path, self.input_directory, text, pitch, self.current_voice)).result())
+                (asyncio.run, speech(model_path=self.current_model,
+                                     rvc_path=self.rvc_path,
+                                     input_directory=self.input_directory,
+                                     text=text,
+                                     pitch=pitch,
+                                     voice=self.current_voice)).result())
         self.can_speak = True
         return path
 
@@ -54,8 +59,8 @@ async def get_voices():
     voicesobj = await VoicesManager.create()
     return [data["ShortName"] for data in voicesobj.voices]
 
-async def speech(model_path, input_directory, rvc_path, message, pitch=0, voice="ru-RU-DmitryNeural"):
-    communicate = tts.Communicate(message, voice)
+async def speech(model_path, input_directory, rvc_path, text, pitch=0, voice="ru-RU-DmitryNeural"):
+    communicate = tts.Communicate(text, voice)
     file_name = "test"
     input_path = os.path.join(input_directory, file_name)
     await communicate.save(input_path)

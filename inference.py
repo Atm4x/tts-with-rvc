@@ -71,5 +71,5 @@ async def speech(model_path, input_directory, rvc_path, text, pitch=0, voice="ru
     name = date_to_short_hash()
     os.rename("output\\out.wav", "output\\" + name + ".wav")
     os.remove("input\\" + file_name)
-    return "output\\" + name + ".wav"
+    return os.path.abspath("output\\" + name + ".wav")
 

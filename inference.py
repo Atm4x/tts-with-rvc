@@ -11,16 +11,16 @@ import hashlib
 from datetime import datetime
 
 class TTS_RVC:
-    def __init__(self, rvc_path, model_path, voice_path="ru-RU-DmitryNeural"):
+    def __init__(self, rvc_path, model_path, voice="ru-RU-DmitryNeural"):
         if not os.path.exists('input'):
             os.mkdir('input')
         if not os.path.exists('output'):
             os.mkdir('output')
 
         self.pool = concurrent.futures.ThreadPoolExecutor()
-        self.current_voice = ""
+        self.current_voice = voice
         self.can_speak = True
-        self.current_model = ""
+        self.current_model = model_path
         self.rvc_path = rvc_path
 
     def set_voice(self, voice):
@@ -29,12 +29,13 @@ class TTS_RVC:
     def get_voices(self):
         return get_voices()
 
-    def __call__(self, text, pitch):
+    def __call__(self, text, input_path, pitch=0):
         if not self.can_speak:
             print("TTS is busy.")
             return None
         self.can_speak = False
-        path = self.pool.submit(asyncio.run, speech(text, pitch, self.current_voice)).result()
+        path = (self.pool.submit
+                (asyncio.run, speech(self.current_model, input_path, self.rvc_path, text, pitch, self.current_voice)).result())
         self.can_speak = True
         return path
 

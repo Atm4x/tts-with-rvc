@@ -1,6 +1,6 @@
 # **TTS-with-RVC**
 
-***TTS-with-RVC** (Text-to-Speech with RVC)* is an package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing a *RVC* module. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support.
+***TTS-with-RVC** (Text-to-Speech with RVC)* is a package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing a *RVC* module. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support.
 
 Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 

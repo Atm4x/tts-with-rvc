@@ -87,9 +87,9 @@ async def speech(model_path,
 
     communicate = tts.Communicate(text=text,
                                   voice=voice,
-                                  rate=f'{"+" if add_rate > 0 else ""}{add_rate}%',
-                                  volume=f'{"+" if add_volume > 0 else ""}{add_volume}%',
-                                  pitch=f'{"+" if add_pitch > 0 else ""}{add_pitch}Hz')
+                                  rate=f'{"+" if add_rate >= 0 else ""}{add_rate}%',
+                                  volume=f'{"+" if add_volume >= 0 else ""}{add_volume}%',
+                                  pitch=f'{"+" if add_pitch >= 0 else ""}{add_pitch}Hz')
     file_name = "test"
     input_path = os.path.join(input_directory, file_name)
     await communicate.save(input_path)
@@ -106,18 +106,24 @@ async def speech(model_path,
 def process_text(input_text, param, default_value=0):
     try:
         words = input_text.split()
+
         value = default_value
+
         i = 0
         while i < len(words):
             if words[i] == param:
-                if i + 1 < len(words) and words[i + 1].isdigit():
-                    value = int(words[i + 1])
-                    words.pop(i)
-                    words.pop(i)
-                    i -= 2
+                if i + 1 < len(words):
+                    next_word = words[i + 1]
+                    if next_word.isdigit() or (next_word[0] == '-' and next_word[1:].isdigit()):
+                        value = int(next_word)
+                        words.pop(i)
+                        words.pop(i)
+                    else:
+                        raise ValueError("Неверный формат значения параметра")
                 else:
-                    raise ValueError("Неверный формат значения параметра")
+                    raise ValueError("Отсутствует значение параметра")
             i += 1
+
         final_string = ' '.join(words)
 
         return value, final_string

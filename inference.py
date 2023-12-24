@@ -46,6 +46,12 @@ class TTS_RVC:
         self.can_speak = True
         return path
 
+    def process_args(self, text):
+        rate_param, text = process_text(text, param="--add-rate")
+        volume_param, text = process_text(text, param="--add-volume")
+        pitch_param, text = process_text(text, param="--add-pitch")
+        return [rate_param, volume_param, pitch_param], text
+
 
 def date_to_short_hash():
     current_date = datetime.now()
@@ -60,16 +66,22 @@ async def get_voices():
     return [data["ShortName"] for data in voicesobj.voices]
 
 
-async def speech(model_path, input_directory, rvc_path, text, pitch=0, voice="ru-RU-DmitryNeural"):
-    rate_param, text = process_text(text, param="--add-rate")
-    volume_param, text = process_text(text, param="--add-volume")
-    pitch_param, text = process_text(text, param="--add-pitch")
+async def speech(model_path,
+                 input_directory,
+                 rvc_path,
+                 text,
+                 pitch=0,
+                 voice="ru-RU-DmitryNeural",
+                 add_rate=0,
+                 add_volume=0,
+                 add_pitch=0):
+
 
     communicate = tts.Communicate(text=text,
                                   voice=voice,
-                                  rate=f'+{rate_param}%',
-                                  volume=f'+{volume_param}%',
-                                  pitch=f'+{pitch_param}Hz')
+                                  rate=f'+{add_rate}%',
+                                  volume=f'+{add_volume}%',
+                                  pitch=f'+{add_pitch}Hz')
     file_name = "test"
     input_path = os.path.join(input_directory, file_name)
     await communicate.save(input_path)

@@ -10,6 +10,7 @@ import config
 import hashlib
 from datetime import datetime
 
+
 class TTS_RVC:
     def __init__(self, rvc_path, input_directory, model_path, voice="ru-RU-DmitryNeural"):
         if not os.path.exists('input'):
@@ -46,7 +47,6 @@ class TTS_RVC:
         return path
 
 
-
 def date_to_short_hash():
     current_date = datetime.now()
     date_str = current_date.strftime("%Y-%m-%d %H:%M:%S")
@@ -59,8 +59,17 @@ async def get_voices():
     voicesobj = await VoicesManager.create()
     return [data["ShortName"] for data in voicesobj.voices]
 
+
 async def speech(model_path, input_directory, rvc_path, text, pitch=0, voice="ru-RU-DmitryNeural"):
-    communicate = tts.Communicate(text, voice)
+    rate_param, text = process_text(text, param="--add-rate")
+    volume_param, text = process_text(text, param="--add-volume")
+    pitch_param, text = process_text(text, param="--add-pitch")
+
+    communicate = tts.Communicate(text=text,
+                                  voice=voice,
+                                  rate=f'+{rate_param}%',
+                                  volume=f'+{volume_param}%',
+                                  pitch=f'+{pitch_param}Hz')
     file_name = "test"
     input_path = os.path.join(input_directory, file_name)
     await communicate.save(input_path)
@@ -73,3 +82,26 @@ async def speech(model_path, input_directory, rvc_path, text, pitch=0, voice="ru
     os.remove("input\\" + file_name)
     return os.path.abspath("output\\" + name + ".wav")
 
+
+def process_text(input_text, param, default_value=0):
+    try:
+        words = input_text.split()
+        value = default_value
+        i = 0
+        while i < len(words):
+            if words[i] == param:
+                if i + 1 < len(words) and words[i + 1].isdigit():
+                    value = int(words[i + 1])
+                    words.pop(i)
+                    words.pop(i)
+                    i -= 2
+                else:
+                    raise ValueError("Неверный формат значения параметра")
+            i += 1
+        final_string = ' '.join(words)
+
+        return value, final_string
+
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        return 0, input_text

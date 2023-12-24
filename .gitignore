@@ -3,3 +3,5 @@
 /input
 /output
 /.idea
+/venv
+/tts_with_rvc.egg-info

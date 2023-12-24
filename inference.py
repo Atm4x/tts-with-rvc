@@ -87,9 +87,9 @@ async def speech(model_path,
 
     communicate = tts.Communicate(text=text,
                                   voice=voice,
-                                  rate=f'+{add_rate}%',
-                                  volume=f'+{add_volume}%',
-                                  pitch=f'+{add_pitch}Hz')
+                                  rate=f'{"+" if add_rate > 0 else ""}{add_rate}%',
+                                  volume=f'{"+" if add_volume > 0 else ""}{add_volume}%',
+                                  pitch=f'{"+" if add_pitch > 0 else ""}{add_pitch}Hz')
     file_name = "test"
     input_path = os.path.join(input_directory, file_name)
     await communicate.save(input_path)

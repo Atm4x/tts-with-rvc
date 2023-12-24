@@ -31,7 +31,12 @@ class TTS_RVC:
     def get_voices(self):
         return get_voices()
 
-    def __call__(self, text, pitch=0):
+    def __call__(self,
+                 text,
+                 pitch=0,
+                 add_rate=0,
+                 add_volume=0,
+                 add_pitch=0):
         if not self.can_speak:
             print("TTS is busy.")
             return None
@@ -42,7 +47,10 @@ class TTS_RVC:
                                      input_directory=self.input_directory,
                                      text=text,
                                      pitch=pitch,
-                                     voice=self.current_voice)).result())
+                                     voice=self.current_voice,
+                                     add_rate=add_rate,
+                                     add_volume=add_volume,
+                                     add_pitch=add_pitch)).result())
         self.can_speak = True
         return path
 

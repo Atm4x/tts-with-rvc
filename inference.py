@@ -34,9 +34,9 @@ class TTS_RVC:
     def __call__(self,
                  text,
                  pitch=0,
-                 add_rate=0,
-                 add_volume=0,
-                 add_pitch=0):
+                 tts_rate=0,
+                 tts_volume=0,
+                 tts_pitch=0):
         if not self.can_speak:
             print("TTS is busy.")
             return None
@@ -48,17 +48,18 @@ class TTS_RVC:
                                      text=text,
                                      pitch=pitch,
                                      voice=self.current_voice,
-                                     add_rate=add_rate,
-                                     add_volume=add_volume,
-                                     add_pitch=add_pitch)).result())
+                                     tts_add_rate=tts_rate,
+                                     tts_add_volume=tts_volume,
+                                     tts_add_pitch=tts_pitch)).result())
         self.can_speak = True
         return path
 
     def process_args(self, text):
-        rate_param, text = process_text(text, param="--add-rate")
-        volume_param, text = process_text(text, param="--add-volume")
-        pitch_param, text = process_text(text, param="--add-pitch")
-        return [rate_param, volume_param, pitch_param], text
+        rate_param, text = process_text(text, param="--tts-rate")
+        volume_param, text = process_text(text, param="--tts-volume")
+        tts_pitch_param, text = process_text(text, param="--tts-pitch")
+        rvc_pitch_param, text = process_text(text, param="--rvc-pitch")
+        return [rate_param, volume_param, tts_pitch_param, rvc_pitch_param], text
 
 
 def date_to_short_hash():
@@ -80,16 +81,16 @@ async def speech(model_path,
                  text,
                  pitch=0,
                  voice="ru-RU-DmitryNeural",
-                 add_rate=0,
-                 add_volume=0,
-                 add_pitch=0):
+                 tts_add_rate=0,
+                 tts_add_volume=0,
+                 tts_add_pitch=0):
 
 
     communicate = tts.Communicate(text=text,
                                   voice=voice,
-                                  rate=f'{"+" if add_rate >= 0 else ""}{add_rate}%',
-                                  volume=f'{"+" if add_volume >= 0 else ""}{add_volume}%',
-                                  pitch=f'{"+" if add_pitch >= 0 else ""}{add_pitch}Hz')
+                                  rate=f'{"+" if tts_add_rate >= 0 else ""}{tts_add_rate}%',
+                                  volume=f'{"+" if tts_add_volume >= 0 else ""}{tts_add_volume}%',
+                                  pitch=f'{"+" if tts_add_pitch >= 0 else ""}{tts_add_pitch}Hz')
     file_name = "test"
     input_path = os.path.join(input_directory, file_name)
     await communicate.save(input_path)
@@ -119,9 +120,9 @@ def process_text(input_text, param, default_value=0):
                         words.pop(i)
                         words.pop(i)
                     else:
-                        raise ValueError("Неверный формат значения параметра")
+                        raise ValueError(f"Invalid type of argument in \"{param}\"")
                 else:
-                    raise ValueError("Отсутствует значение параметра")
+                    raise ValueError(f"There is no value for parameter \"{param}\"")
             i += 1
 
         final_string = ' '.join(words)

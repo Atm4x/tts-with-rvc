@@ -37,10 +37,6 @@ class TTS_RVC:
                  tts_rate=0,
                  tts_volume=0,
                  tts_pitch=0):
-        if not self.can_speak:
-            print("TTS is busy.")
-            return None
-        self.can_speak = False
         path = (self.pool.submit
                 (asyncio.run, speech(model_path=self.current_model,
                                      rvc_path=self.rvc_path,
@@ -51,7 +47,6 @@ class TTS_RVC:
                                      tts_add_rate=tts_rate,
                                      tts_add_volume=tts_volume,
                                      tts_add_pitch=tts_pitch)).result())
-        self.can_speak = True
         return path
 
     def process_args(self, text):
@@ -74,6 +69,7 @@ async def get_voices():
     voicesobj = await VoicesManager.create()
     return [data["ShortName"] for data in voicesobj.voices]
 
+can_speak = False
 
 async def speech(model_path,
                  input_directory,
@@ -84,7 +80,7 @@ async def speech(model_path,
                  tts_add_rate=0,
                  tts_add_volume=0,
                  tts_add_pitch=0):
-
+    global can_speak
     communicate = tts.Communicate(text=text,
                                   voice=voice,
                                   rate=f'{"+" if tts_add_rate >= 0 else ""}{tts_add_rate}%',
@@ -93,6 +89,9 @@ async def speech(model_path,
     file_name = date_to_short_hash()
     input_path = os.path.join(input_directory, file_name)
     await communicate.save(input_path)
+    while not can_speak:
+        await asyncio.sleep(1)
+    can_speak = False
     output_path = rvc_convert(model_path=model_path,
                               input_path=input_path,
                               rvc_path=rvc_path,
@@ -101,8 +100,8 @@ async def speech(model_path,
     os.rename("output\\out.wav", "output\\" + name + ".wav")
     os.remove("input\\" + file_name)
     output_path = "output\\" + name + ".wav"
-    while not os.path.isfile(output_path):
-        await asyncio.sleep(1)
+
+    can_speak = True
     return os.path.abspath(output_path)
 
 

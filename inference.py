@@ -85,13 +85,12 @@ async def speech(model_path,
                  tts_add_volume=0,
                  tts_add_pitch=0):
 
-
     communicate = tts.Communicate(text=text,
                                   voice=voice,
                                   rate=f'{"+" if tts_add_rate >= 0 else ""}{tts_add_rate}%',
                                   volume=f'{"+" if tts_add_volume >= 0 else ""}{tts_add_volume}%',
                                   pitch=f'{"+" if tts_add_pitch >= 0 else ""}{tts_add_pitch}Hz')
-    file_name = "test"
+    file_name = date_to_short_hash()
     input_path = os.path.join(input_directory, file_name)
     await communicate.save(input_path)
     output_path = rvc_convert(model_path=model_path,
@@ -101,7 +100,7 @@ async def speech(model_path,
     name = date_to_short_hash()
     os.rename("output\\out.wav", "output\\" + name + ".wav")
     os.remove("input\\" + file_name)
-    output_path = "output\\" + name + ".wav";
+    output_path = "output\\" + name + ".wav"
     while not os.path.isfile(output_path):
         await asyncio.sleep(1)
     return os.path.abspath(output_path)

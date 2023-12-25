@@ -69,7 +69,7 @@ async def get_voices():
     voicesobj = await VoicesManager.create()
     return [data["ShortName"] for data in voicesobj.voices]
 
-can_speak = False
+can_speak = True
 
 async def speech(model_path,
                  input_directory,
@@ -88,10 +88,11 @@ async def speech(model_path,
                                   pitch=f'{"+" if tts_add_pitch >= 0 else ""}{tts_add_pitch}Hz')
     file_name = date_to_short_hash()
     input_path = os.path.join(input_directory, file_name)
-    await communicate.save(input_path)
     while not can_speak:
         await asyncio.sleep(1)
     can_speak = False
+    await communicate.save(input_path)
+
     output_path = rvc_convert(model_path=model_path,
                               input_path=input_path,
                               rvc_path=rvc_path,

@@ -101,6 +101,7 @@ async def speech(model_path,
     name = date_to_short_hash()
     os.rename("output\\out.wav", "output\\" + name + ".wav")
     os.remove("input\\" + file_name)
+    while not os.path.isfile("output\\" + file_name): await asyncio.sleep(1)
     return os.path.abspath("output\\" + name + ".wav")
 
 

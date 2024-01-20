@@ -31,9 +31,9 @@ TTS-with-RVC has a class called `TTS_RVC`. There are a few parameters that are r
 
 `rvc_path` - path to your installed *rvc* directory (Usually in the venv/src folder) 
 
-`input_directory` - path to your input directory (Temp direcotry for saving TTS output)
+`input_directory` - path to your input directory (Temp directory for saving TTS output)
 
-`model_path` - path to yout .pth model
+`model_path` - path to your .pth model
 
 And optional parameters:
 

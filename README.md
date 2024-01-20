@@ -127,7 +127,7 @@ The `args` variable contains an array with the following structure:
 
 And now we are ready to use it for generation:
 ```python
-path = tts(res.content, pitch=args[3],
+path = tts(message, pitch=args[3],
                tts_rate=args[0],
                tts_volume=args[1],
                tts_pitch=args[2])

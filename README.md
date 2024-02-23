@@ -137,6 +137,6 @@ path = tts(message, pitch=args[3],
 No license
 
 ## Authors
-[Atm4x](https://github.com/Atm4x (Artem Dikarev)
+[Atm4x](https://github.com/Atm4x) (Artem Dikarev)
 
 

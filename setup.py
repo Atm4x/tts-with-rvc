@@ -5,7 +5,7 @@ setup(
     version='0.1.2',
     description='TTS with RVC pipeline',
     author='Atm4x',
-    package_dir={'': 'src'}
+    package_dir={'': 'src'},
     packages=find_packages(),
     install_requires=[
         "huggingface_hub",

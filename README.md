@@ -10,7 +10,7 @@ Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 
 2) Then, install TTS-with-RVC using pip install:
 ```
-pip install -e git+https://github.com/SunSual/tts-with-rvc.git#egg=tts-with-rvc
+python -m pip install -e git+https://github.com/Atm4x/tts-with-rvc.git@dev#egg=tts_with_rvc
 ```
 3) After, install rvc:
 ```

@@ -42,7 +42,7 @@ And optional parameters:
 To get voice list, firstly, make instance of TTS_RVC:
 
 ```python
-from inference import TTS_RVC
+from tts_with_rvc.inference import TTS_RVC
 
 tts = TTS_RVC(rvc_path="src\\rvc", model_path="models\\YourModel.pth", input_directory="input\\")
 ```
@@ -81,7 +81,7 @@ Parameters:
 A simple example for voicing generated text:
 
 ```python
-from inference import TTS_RVC
+from tts_with_rvc.inference import TTS_RVC
 from playsound import playsound
 
 tts = TTS_RVC(rvc_path="src\\rvc", model_path="models\\DenVot.pth", input_directory="input\\")

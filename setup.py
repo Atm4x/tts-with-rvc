@@ -14,6 +14,5 @@ setup(
         "torch",
         "torchaudio",
         "edge-tts"
-    ],
-    scripts=['inference.py']
+    ]
 )

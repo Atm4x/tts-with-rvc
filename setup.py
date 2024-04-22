@@ -1,7 +1,6 @@
 from setuptools import setup, find_packages
 import os
 
-os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir, os.pardir)))
 
 setup(
     name='tts_with_rvc',

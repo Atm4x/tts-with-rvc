@@ -13,5 +13,6 @@ setup(
         "torch",
         "torchaudio",
         "edge-tts"
-    ]
+    ],
+    package_dir={'': 'src'}
 )

@@ -14,5 +14,5 @@ setup(
         "torchaudio",
         "edge-tts"
     ],
-    package_dir={'': 'src'}
+    package_dir={'': 'tts_with_rvc'}
 )

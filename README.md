@@ -16,7 +16,11 @@ python -m pip install git+https://github.com/Atm4x/tts-with-rvc.git@dev#egg=tts_
 ```
 python -m pip install git+https://github.com/Atm4x/rvc-lib.git@dev#egg=rvc
 ```
-4) And finally, install the [fixed](https://github.com/SunSual/rvc-tts-pipeline-fix) version of rvc-tts-pipeline:
+4) Then, also install rvc but as repo:
+```
+python -m pip install -e git+https://github.com/Atm4x/rvc-lib.git#egg=rvclib
+```  
+5) And finally, install the [fixed](https://github.com/SunSual/rvc-tts-pipeline-fix) version of rvc-tts-pipeline:
 ```
 python -m pip install git+https://github.com/Atm4x/rvc-tts-pipeline-fix.git@dev#egg=rvc_tts_pipe
 ```
@@ -29,7 +33,7 @@ python -m pip install git+https://github.com/Atm4x/rvc-tts-pipeline-fix.git@dev#
 
 TTS-with-RVC has a class called `TTS_RVC`. There are a few parameters that are required:
 
-`rvc_path` - path to your installed *rvc* directory (Usually in the venv/src folder) 
+`rvc_path` - path to your **installed** *rvclib* directory (Usually in the venv/src folder. ) 
 
 `input_directory` - path to your input directory (Temp directory for saving TTS output)
 
@@ -44,7 +48,7 @@ To get voice list, firstly, make instance of TTS_RVC:
 ```python
 from tts_with_rvc.inference import TTS_RVC
 
-tts = TTS_RVC(rvc_path="src\\rvc", model_path="models\\YourModel.pth", input_directory="input\\")
+tts = TTS_RVC(rvc_path="src\\rvclib", model_path="models\\YourModel.pth", input_directory="input\\")
 ```
 
 Next step is calling `tts.get_voices()` and setting voice:
@@ -84,7 +88,7 @@ A simple example for voicing generated text:
 from tts_with_rvc.inference import TTS_RVC
 from playsound import playsound
 
-tts = TTS_RVC(rvc_path="src\\rvc", model_path="models\\DenVot.pth", input_directory="input\\")
+tts = TTS_RVC(rvc_path="src\\rvclib", model_path="models\\DenVot.pth", input_directory="input\\")
 tts.set_voice("ru-RU-DmitryNeural")
 path = tts(text="Привет, мир!", pitch=6)
 
@@ -109,7 +113,7 @@ Now the principle of work:
 ```python
 from inference import TTS_RVC
 
-tts = TTS_RVC(rvc_path="src\\rvc", model_path="models\\YourModel.pth", input_directory="input\\")
+tts = TTS_RVC(rvc_path="src\\rvclib", model_path="models\\YourModel.pth", input_directory="input\\")
 
 # This method returns arguments and original text without these text parameters
 args, message = tts.process_args(message)

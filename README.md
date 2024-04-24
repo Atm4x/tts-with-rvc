@@ -133,6 +133,12 @@ path = tts(message, pitch=args[3],
                tts_pitch=args[2])
 ```
 
+## Exceptions
+1) Exception:
+```NameError: name 'device' is not defined```
+
+Be sure your device supports CUDA and you installed right version of Torch.
+
 ## License
 No license
 

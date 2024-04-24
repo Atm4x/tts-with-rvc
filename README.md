@@ -14,7 +14,7 @@ python3 -m pip install -e git+https://github.com/Atm4x/tts-with-rvc.git@dev#egg=
 ```
 3) After, install rvc:
 ```
-python3 -m pip install -e git+https://github.com/Atm4x/rvc-lib.git@dev#egg=rvc
+python3 -m pip install -e git+https://github.com/Atm4x/rvc-lib.git@dev#egg=rvc-lib
 ```
 4) And finally, install the [fixed](https://github.com/SunSual/rvc-tts-pipeline-fix) version of rvc-tts-pipeline:
 ```

@@ -62,8 +62,8 @@ def date_to_short_hash():
     return short_hash
 
 
-async def get_voices():
-    voicesobj = await VoicesManager.create()
+def get_voices():
+    voicesobj = VoicesManager.create()
     return [data["ShortName"] for data in voicesobj.voices]
 
 can_speak = True

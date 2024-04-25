@@ -26,7 +26,7 @@ class TTS_RVC:
         self.current_voice = voice
 
     def get_voices(self):
-        return get_voices()
+        return (self.pool.submit(asyncio.run, get_voices())
 
     def __call__(self,
                  text,
@@ -62,8 +62,8 @@ def date_to_short_hash():
     return short_hash
 
 
-def get_voices():
-    voicesobj = VoicesManager.create()
+async def get_voices():
+    voicesobj = await VoicesManager.create()
     return [data["ShortName"] for data in voicesobj.voices]
 
 can_speak = True

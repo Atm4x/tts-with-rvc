@@ -26,7 +26,8 @@ class TTS_RVC:
         self.current_voice = voice
 
     def get_voices(self):
-        return self.pool.submit(asyncio.run, get_voices())
+        voices = (self.pool.submit(asyncio.run, get_voices()))
+        return voices
 
     def __call__(self,
                  text,

@@ -20,10 +20,11 @@ python -m pip install git+https://github.com/Atm4x/rvc-lib.git@dev#egg=rvc
 ```
 python -m pip install -e git+https://github.com/Atm4x/rvc-lib.git#egg=rvclib
 ```  
-5) And finally, install the [fixed](https://github.com/SunSual/rvc-tts-pipeline-fix) version of rvc-tts-pipeline:
+5) Near the end, install the [fixed](https://github.com/Atm4x/rvc-tts-pipeline-fix) version of rvc-tts-pipeline:
 ```
 python -m pip install git+https://github.com/Atm4x/rvc-tts-pipeline-fix.git@dev#egg=rvc_tts_pipe
 ```
+6) And finally, install [ffmpeg](https://ffmpeg.org/download.html) if you don't already have one, and add it to the folder with your script **or better yet** add ffmpeg to the `Environment variables` in `Path`. 
 
 ## How it Works
 1. **Text-to-Speech (TTS):** Users enter text into the TTS module, which then processes it and generates the corresponding speech as a file saved in the entered input directory

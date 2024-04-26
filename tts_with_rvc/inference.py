@@ -14,7 +14,9 @@ class TTS_RVC:
             os.mkdir('input')
         if not os.path.exists('output'):
             os.mkdir('output')
-
+            
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        
         self.pool = concurrent.futures.ThreadPoolExecutor()
         self.voices_pool = concurrent.futures.ThreadPoolExecutor()
         self.current_voice = voice

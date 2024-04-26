@@ -26,11 +26,9 @@ class TTS_RVC:
         self.current_voice = voice
 
     def get_voices(self):
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
         voices = loop.run_until_complete(get_voices())
         loop.close()
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
         return voices
 
     def __call__(self,

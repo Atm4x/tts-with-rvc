@@ -25,11 +25,11 @@ class TTS_RVC:
     def set_voice(self, voice):
         self.current_voice = voice
 
-    def get_voices(self):
-        loop = asyncio.new_event_loop()
-        voices = loop.run_until_complete(get_voices())
-        loop.close()
-        return voices
+    #def get_voices(self):
+    #    loop = asyncio.new_event_loop()
+    #    voices = loop.run_until_complete(get_voices())
+    #    loop.close()
+    #    return voices
 
     def __call__(self,
                  text,

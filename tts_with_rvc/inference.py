@@ -16,7 +16,6 @@ class TTS_RVC:
             os.mkdir('output')
         
         self.pool = concurrent.futures.ThreadPoolExecutor()
-        self.voices_pool = concurrent.futures.ThreadPoolExecutor()
         self.current_voice = voice
         self.input_directory = input_directory
         self.can_speak = True
@@ -27,7 +26,7 @@ class TTS_RVC:
         self.current_voice = voice
 
     def get_voices(self):
-        voices = (self.voices_pool.submit
+        voices = (self.pool.submit
                 (asyncio.run, get_voices()).result())
         return voices
 

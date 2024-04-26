@@ -26,9 +26,8 @@ class TTS_RVC:
         self.current_voice = voice
 
     def get_voices(self):
-        voices = (self.pool.submit
-                (asyncio.run, get_voices()).result())
-        self.pool = concurrent.futures.ThreadPoolExecutor()
+        loop = asyncio.get_event_loop()
+        voices = loop.run_until_complete(get_voices())
         return voices
 
     def __call__(self,

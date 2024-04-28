@@ -49,6 +49,21 @@ class TTS_RVC:
                                      tts_add_pitch=tts_pitch)).result())
         return path
 
+    def speech(self, model_path, input_path, rvc_path, pitch=0):
+        global can_speak
+        if not can_speak:
+            print("Can't speak now")
+            return
+        output_path = rvc_convert(model_path=model_path,
+                                  input_path=input_path,
+                                  rvc_path=rvc_path,
+                                  f0_up_key=pitch)
+        name = date_to_short_hash()
+        os.rename("output\\out.wav", "output\\" + name + ".wav")
+        output_path = "output\\" + name + ".wav"
+
+        return os.path.abspath(output_path)
+
     def process_args(self, text):
         rate_param, text = process_text(text, param="--tts-rate")
         volume_param, text = process_text(text, param="--tts-volume")
@@ -71,6 +86,22 @@ async def get_voices():
 
 can_speak = True
 
+async def tts_comminicate(input_directory,
+                 text,
+                 voice="ru-RU-DmitryNeural",
+                 tts_add_rate=0,
+                 tts_add_volume=0,
+                 tts_add_pitch=0):
+    communicate = tts.Communicate(text=text,
+                                  voice=voice,
+                                  rate=f'{"+" if tts_add_rate >= 0 else ""}{tts_add_rate}%',
+                                  volume=f'{"+" if tts_add_volume >= 0 else ""}{tts_add_volume}%',
+                                  pitch=f'{"+" if tts_add_pitch >= 0 else ""}{tts_add_pitch}Hz')
+    file_name = date_to_short_hash()
+    input_path = os.path.join(input_directory, file_name)
+    await communicate.save(input_path)
+    return input_path, file_name
+
 async def speech(model_path,
                  input_directory,
                  rvc_path,
@@ -81,17 +112,17 @@ async def speech(model_path,
                  tts_add_volume=0,
                  tts_add_pitch=0):
     global can_speak
-    communicate = tts.Communicate(text=text,
-                                  voice=voice,
-                                  rate=f'{"+" if tts_add_rate >= 0 else ""}{tts_add_rate}%',
-                                  volume=f'{"+" if tts_add_volume >= 0 else ""}{tts_add_volume}%',
-                                  pitch=f'{"+" if tts_add_pitch >= 0 else ""}{tts_add_pitch}Hz')
-    file_name = date_to_short_hash()
-    input_path = os.path.join(input_directory, file_name)
+
+    input_path, file_name = await tts_comminicate(input_directory=input_directory,
+              text=text,
+              voice=voice,
+              tts_add_rate=tts_add_rate,
+              tts_add_volume=tts_add_volume,
+              tts_add_pitch=tts_add_pitch)
+
     while not can_speak:
         await asyncio.sleep(1)
     can_speak = False
-    await communicate.save(input_path)
 
     output_path = rvc_convert(model_path=model_path,
                               input_path=input_path,

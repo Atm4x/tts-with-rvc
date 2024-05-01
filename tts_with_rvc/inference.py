@@ -10,10 +10,8 @@ from datetime import datetime
 
 class TTS_RVC:
     def __init__(self, rvc_path, input_directory, model_path, voice="ru-RU-DmitryNeural"):
-        if not os.path.exists('input'):
-            os.mkdir('input')
-        if not os.path.exists('output'):
-            os.mkdir('output')
+        if not os.path.exists('temp'):
+            os.mkdir('temp')
         
         self.pool = concurrent.futures.ThreadPoolExecutor()
         self.current_voice = voice
@@ -49,7 +47,7 @@ class TTS_RVC:
                                      tts_add_pitch=tts_pitch)).result())
         return path
 
-    def speech(self, model_path, input_path, rvc_path, pitch=0):
+    def speech(self, model_path, input_path, rvc_path, pitch=0, filename="out.wav"):
         global can_speak
         if not can_speak:
             print("Can't speak now")
@@ -57,10 +55,12 @@ class TTS_RVC:
         output_path = rvc_convert(model_path=model_path,
                                   input_path=input_path,
                                   rvc_path=rvc_path,
-                                  f0_up_key=pitch)
+                                  f0_up_key=pitch,
+                                  output_filename=filename)
         name = date_to_short_hash()
-        os.rename("output\\out.wav", "output\\" + name + ".wav")
-        output_path = "output\\" + name + ".wav"
+        if filename == "out.wav":
+            os.rename(f"temp\\out.wav", "output\\" + name + ".wav")
+            output_path = "temp\\" + name + ".wav"
 
         return os.path.abspath(output_path)
 
@@ -110,7 +110,8 @@ async def speech(model_path,
                  voice="ru-RU-DmitryNeural",
                  tts_add_rate=0,
                  tts_add_volume=0,
-                 tts_add_pitch=0):
+                 tts_add_pitch=0,
+                 filename="out.wav"):
     global can_speak
 
     input_path, file_name = await tts_comminicate(input_directory=input_directory,
@@ -127,12 +128,14 @@ async def speech(model_path,
     output_path = rvc_convert(model_path=model_path,
                               input_path=input_path,
                               rvc_path=rvc_path,
-                              f0_up_key=pitch)
+                              f0_up_key=pitch,
+                              output_filename=filename)
     name = date_to_short_hash()
-    os.rename("output\\out.wav", "output\\" + name + ".wav")
-    os.remove("input\\" + file_name)
-    output_path = "output\\" + name + ".wav"
+    if filename == "out.wav":
+        os.rename("output\\out.wav", "output\\" + name + ".wav")
+        output_path = "output\\" + name + ".wav"
 
+    os.remove("input\\" + file_name)
     can_speak = True
     return os.path.abspath(output_path)
 

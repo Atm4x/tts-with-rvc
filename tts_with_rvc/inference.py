@@ -59,7 +59,7 @@ class TTS_RVC:
                                   output_filename=filename)
         name = date_to_short_hash()
         if filename == "out.wav":
-            os.rename(f"temp\\out.wav", "output\\" + name + ".wav")
+            os.rename(f"temp\\out.wav", "temp\\" + name + ".wav")
             output_path = "temp\\" + name + ".wav"
 
         return os.path.abspath(output_path)

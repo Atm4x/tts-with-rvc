@@ -132,7 +132,7 @@ async def speech(model_path,
                               output_filename=filename)
     name = date_to_short_hash()
     if filename == "out.wav":
-        os.rename("temp\\out.wav", "output\\" + name + ".wav")
+        os.rename("temp\\out.wav", "temp\\" + name + ".wav")
         output_path = "temp\\" + name + ".wav"
 
     os.remove("input\\" + file_name)

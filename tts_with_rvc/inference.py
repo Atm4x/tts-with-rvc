@@ -143,7 +143,7 @@ async def speech(model_path,
                               rvc_path=rvc_path,
                               f0_up_key=pitch,
                               output_filename=filename,
-                              output_dir_path=output_directory‎)
+                              ‎output_dir_path=output_directory)
     name = date_to_short_hash()
     if filename is None:
         if output_directory is None:

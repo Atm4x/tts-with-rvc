@@ -9,7 +9,7 @@ from datetime import datetime
 
 
 class TTS_RVC:
-    def __init__(self, rvc_path, input_directory, model_path, voice="ru-RU-DmitryNeural"):
+    def __init__(self, rvc_path, input_directory, model_path, voice="ru-RU-DmitryNeural", output_directory=None):
         if not os.path.exists('temp'):
             os.mkdir('temp')
         
@@ -19,6 +19,7 @@ class TTS_RVC:
         self.can_speak = True
         self.current_model = model_path
         self.rvc_path = rvc_path
+        self.output_directory = output_directory 
 
     def set_voice(self, voice):
         self.current_voice = voice
@@ -29,12 +30,16 @@ class TTS_RVC:
     #    loop.close()
     #    return voices
 
+    def set_output_directory(directory_path):
+        self.output_directory = directory_path
+    
     def __call__(self,
                  text,
                  pitch=0,
                  tts_rate=0,
                  tts_volume=0,
-                 tts_pitch=0):
+                 tts_pitch=0,
+                 output_filename=None):
         path = (self.pool.submit
                 (asyncio.run, speech(model_path=self.current_model,
                                      rvc_path=self.rvc_path,
@@ -44,10 +49,12 @@ class TTS_RVC:
                                      voice=self.current_voice,
                                      tts_add_rate=tts_rate,
                                      tts_add_volume=tts_volume,
-                                     tts_add_pitch=tts_pitch)).result())
+                                     tts_add_pitch=tts_pitch,
+                                     output_directory=self.output_directory,
+                                     filename=output_filename)).result())
         return path
 
-    def speech(self, model_path, input_path, rvc_path, pitch=0, filename="out.wav"):
+    def speech(self, model_path, input_path, rvc_path, pitch=0, output_directory=None, filename=None):
         global can_speak
         if not can_speak:
             print("Can't speak now")
@@ -56,11 +63,16 @@ class TTS_RVC:
                                   input_path=input_path,
                                   rvc_path=rvc_path,
                                   f0_up_key=pitch,
-                                  output_filename=filename)
+                                  output_filename=filename,
+                                  output_dir_path=output_directory‎)
         name = date_to_short_hash()
-        if filename == "out.wav":
-            os.rename(f"temp\\out.wav", "temp\\" + name + ".wav")
-            output_path = "temp\\" + name + ".wav"
+        if filename is None:
+            if output_directory is None:
+                output_directory = "temp"
+            
+            new_path = os.path.join(output_directory, name + ".wav")
+            os.rename(output_path, new_path)
+            output_path = new_path
 
         return os.path.abspath(output_path)
 
@@ -111,7 +123,8 @@ async def speech(model_path,
                  tts_add_rate=0,
                  tts_add_volume=0,
                  tts_add_pitch=0,
-                 filename="out.wav"):
+                 filename=None,
+                 output_directory=None):
     global can_speak
 
     input_path, file_name = await tts_comminicate(input_directory=input_directory,
@@ -129,13 +142,17 @@ async def speech(model_path,
                               input_path=input_path,
                               rvc_path=rvc_path,
                               f0_up_key=pitch,
-                              output_filename=filename)
+                              output_filename=filename,
+                              output_dir_path=output_directory‎)
     name = date_to_short_hash()
-    if filename == "out.wav":
-        os.rename("temp\\out.wav", "temp\\" + name + ".wav")
-        output_path = "temp\\" + name + ".wav"
+    if filename is None:
+        if output_directory is None:
+                output_directory = "temp"
+        new_path = os.path.join(output_directory, name + ".wav")
+        os.rename(output_path, new_path)
+        output_path = new_path
 
-    os.remove("input\\" + file_name)
+    os.remove(input_path)
     can_speak = True
     return os.path.abspath(output_path)
 

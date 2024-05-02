@@ -10,9 +10,6 @@ from datetime import datetime
 
 class TTS_RVC:
     def __init__(self, rvc_path, input_directory, model_path, voice="ru-RU-DmitryNeural", output_directory=None):
-        if not os.path.exists('temp'):
-            os.mkdir('temp')
-        
         self.pool = concurrent.futures.ThreadPoolExecutor()
         self.current_voice = voice
         self.input_directory = input_directory

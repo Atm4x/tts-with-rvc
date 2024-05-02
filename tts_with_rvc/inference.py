@@ -59,7 +59,7 @@ class TTS_RVC:
         if not can_speak:
             print("Can't speak now")
             return
-        output_path = rvc_convert(model_path=self.model_path,
+        output_path = rvc_convert(model_path=self.current_model,
                                   input_path=input_path,
                                   rvc_path=self.rvc_path,
                                   f0_up_key=pitch,

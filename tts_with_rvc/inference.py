@@ -54,14 +54,14 @@ class TTS_RVC:
                                      filename=output_filename)).result())
         return path
 
-    def speech(self, model_path, input_path, rvc_path, pitch=0, output_directory=None, filename=None):
+    def speech(self, input_path, pitch=0, output_directory=None, filename=None):
         global can_speak
         if not can_speak:
             print("Can't speak now")
             return
-        output_path = rvc_convert(model_path=model_path,
+        output_path = rvc_convert(model_path=self.model_path,
                                   input_path=input_path,
-                                  rvc_path=rvc_path,
+                                  rvc_path=self.rvc_path,
                                   f0_up_key=pitch,
                                   output_filename=filename,
                                   output_dir_path=output_directory)

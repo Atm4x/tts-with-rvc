@@ -21,7 +21,7 @@ You must have **CUDA or MPS** support for your GPU (mps is not tested yet).
 
 2) Then, install TTS-with-RVC using pip install:
 ```
-python -m pip install git+https://github.com/Atm4x/tts-with-rvc.git@dev#egg=tts_with_rvc
+python -m pip install git+https://github.com/Atm4x/tts-with-rvc.git#egg=tts_with_rvc
 ```
 3) After, install rvc:
 ```

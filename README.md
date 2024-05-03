@@ -1,4 +1,4 @@
-# **TTS-with-RVC** 0.1.2
+# **TTS-with-RVC** 0.1.3
 
 ***TTS-with-RVC** (Text-to-Speech with RVC)* is a package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing a *RVC* module. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support.
 

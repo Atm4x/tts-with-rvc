@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='tts_with_rvc',
-    version='0.1.3.1',
+    version='0.1.3',
     description='TTS with RVC pipeline',
     author='Atm4x',
     packages=find_packages(),  # Update find_packages to look in 'src' director

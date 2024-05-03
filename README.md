@@ -5,9 +5,9 @@
 Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 
 **It may contain bugs. Report an issue in case of error.**
-## Requirements
+## Prerequisites
 
-You must have **Python 3.10.x** installed.
+You must have **Python<=3.10** installed (3.10 is recommended).
 
 You must have **CUDA or MPS** support for your GPU (mps is not tested yet).
 
@@ -34,7 +34,7 @@ python -m pip install git+https://github.com/Atm4x/rvc-tts-pipeline-fix.git@dev#
 
 ## How it Works
 1. **Text-to-Speech (TTS):** Users enter text into the TTS module, which then processes it and generates the corresponding speech as a file saved in the entered input directory
-2. **RVC:** With .pth file provided, RVC module reads the generated audio file, processes it and generates an new audio saved in *output* directory with voice replaced.
+2. **RVC:** With .pth file provided, RVC module reads the generated audio file, processes it and generates an new audio saved in *output_directory* with voice replaced.
 
 ## Usage
 
@@ -50,25 +50,28 @@ And optional parameters:
 
 `voice` - voice from edge-tts list *(default is "ru-RU-DmitryNeural")*
 
-To get voice list, firstly, make instance of TTS_RVC:
+`output_directory` - directory for saving voiced audio (`temp/` is default).
+
+To set the voice, firstly, make instance of TTS_RVC:
 
 ```python
-from tts_with_rvc.inference import TTS_RVC
+from tts_with_rvc import TTS_RVC
 
 tts = TTS_RVC(rvc_path="src\\rvclib", model_path="models\\YourModel.pth", input_directory="input\\")
 ```
 
-Next step is calling `tts.get_voices()` and setting voice:
+
+All voices available placed in `voices.txt` file:
+
+`tts.get_voices()` **is disabled indefinitely due to the problems**
+
+Next, set the voice for TTS with `tts.set_voice()` function:
 
 ```python
-voices = tts.get_voices()
-print(voices)
-tts.set_voice(voices[0])
+tts.set_voice("un-Un-SelectedNeural")
 ```
 
-This code will print all voices available and then you choose with any method you want (For example, `voices[0]`).
-
-This is necessary if you are using other languages for voiceovers!
+Setting the appropriate language is necessary if you are using other languages for voiceovers!
 
 And final step is calling `tts` to replace voice:
 
@@ -88,11 +91,13 @@ Parameters:
 
 `tts_pitch` - extra pitch of TTS-generated audio (optional, neg. values are compatible, <b>not recommended</b>, default is 0)
 
+`output_filename` - specified path for voiced audio (optional, default is `None`)
+
 ## Example of usage
-A simple example for voicing generated text:
+A simple example for voicing text:
 
 ```python
-from tts_with_rvc.inference import TTS_RVC
+from tts_with_rvc import TTS_RVC
 from playsound import playsound
 
 tts = TTS_RVC(rvc_path="src\\rvclib", model_path="models\\DenVot.pth", input_directory="input\\")
@@ -118,7 +123,7 @@ You can process them using `process_args` in `TTS_RVC` class:
 Now the principle of work:
 
 ```python
-from inference import TTS_RVC
+from tts_with_rvc import TTS_RVC
 
 tts = TTS_RVC(rvc_path="src\\rvclib", model_path="models\\YourModel.pth", input_directory="input\\")
 
@@ -145,10 +150,15 @@ path = tts(message, pitch=args[3],
 ```
 
 ## Exceptions
-1) Exception:
+1) NameError:
 ```NameError: name 'device' is not defined```
 
 Be sure your device supports CUDA and you installed right version of Torch.
+
+2) RuntimeError:
+```RuntimeError: Failed to load audio: {e}```
+
+Be sure you installed `ffmpeg`.
 
 ## License
 No license

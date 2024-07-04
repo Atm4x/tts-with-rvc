@@ -145,4 +145,7 @@ No license
 ## Authors
 [Atm4x](https://github.com/Atm4x) (Artem Dikarev)
 
+## Contributors
+[Amadeus](https://github.com/Vasysik) (Participated in writing the "can_speak" flag)
+
 

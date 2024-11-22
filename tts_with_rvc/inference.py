@@ -9,17 +9,29 @@ from datetime import datetime
 
 
 class TTS_RVC:
-    def __init__(self, rvc_path, input_directory, model_path, voice="ru-RU-DmitryNeural", output_directory=None):
+    def __init__(self, rvc_path, input_directory, model_path, voice="ru-RU-DmitryNeural", index_path="", output_directory=None):
         self.pool = concurrent.futures.ThreadPoolExecutor()
         self.current_voice = voice
         self.input_directory = input_directory
         self.can_speak = True
         self.current_model = model_path
         self.rvc_path = rvc_path
-        self.output_directory = output_directory 
+        self.output_directory = output_directory
+        if not os.path.exists(index_path) and index_path != "":
+            print("Index path not found, skipping...")
+        else:
+            print("Index path:", index_path)
+        self.index_path = index_path
 
     def set_voice(self, voice):
         self.current_voice = voice
+    
+    def set_index_path(self, index_path):
+        if not os.path.exists(index_path) and index_path != "":
+            print("Index path not found, skipping...")
+        else:
+            print("Index path:", index_path)
+        self.index_path = index_path
 
     #def get_voices(self):
     #    loop = asyncio.new_event_loop()
@@ -27,7 +39,7 @@ class TTS_RVC:
     #    loop.close()
     #    return voices
 
-    def set_output_directory(directory_path):
+    def set_output_directory(self, directory_path):
         self.output_directory = directory_path
     
     def __call__(self,
@@ -36,7 +48,8 @@ class TTS_RVC:
                  tts_rate=0,
                  tts_volume=0,
                  tts_pitch=0,
-                 output_filename=None):
+                 output_filename=None,
+                 index_rate=0.75):
         path = (self.pool.submit
                 (asyncio.run, speech(model_path=self.current_model,
                                      rvc_path=self.rvc_path,
@@ -48,10 +61,12 @@ class TTS_RVC:
                                      tts_add_volume=tts_volume,
                                      tts_add_pitch=tts_pitch,
                                      output_directory=self.output_directory,
-                                     filename=output_filename)).result())
+                                     filename=output_filename,
+                                     index_path=self.index_path,
+                                     index_rate=index_rate)).result())
         return path
 
-    def speech(self, input_path, pitch=0, output_directory=None, filename=None):
+    def speech(self, input_path, pitch=0, output_directory=None, filename=None, index_rate=0.75):
         global can_speak
         if not can_speak:
             print("Can't speak now")
@@ -61,7 +76,9 @@ class TTS_RVC:
                                   rvc_path=self.rvc_path,
                                   f0_up_key=pitch,
                                   output_filename=filename,
-                                  output_dir_path=output_directory)
+                                  output_dir_path=output_directory,
+                                  file_index=self.index_path,
+                                  index_rate=index_rate)
         name = date_to_short_hash()
         if filename is None:
             if output_directory is None:
@@ -121,7 +138,9 @@ async def speech(model_path,
                  tts_add_volume=0,
                  tts_add_pitch=0,
                  filename=None,
-                 output_directory=None):
+                 output_directory=None,
+                 index_path="",
+                 index_rate=0.75):
     global can_speak
 
     input_path, file_name = await tts_comminicate(input_directory=input_directory,
@@ -140,7 +159,9 @@ async def speech(model_path,
                               rvc_path=rvc_path,
                               f0_up_key=pitch,
                               output_filename=filename,
-                              output_dir_path=output_directory)
+                              output_dir_path=output_directory,
+                              file_index=index_path,
+                              index_rate=index_rate)
     name = date_to_short_hash()
     if filename is None:
         if output_directory is None:

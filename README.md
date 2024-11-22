@@ -1,4 +1,4 @@
-# **TTS-with-RVC** 0.1.3
+# **TTS-with-RVC** 0.1.4
 
 ***TTS-with-RVC** (Text-to-Speech with RVC)* is a package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing a *RVC* module. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support.
 
@@ -7,6 +7,8 @@ Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 **It may contain bugs. Report an issue in case of error.**
 
 ## Release notes
+
+**0.1.4** - Added index_path and index_rate parameters for more control over index-based voice conversion. 
 
 **0.1.3** - fixed a lot problems, some optimization. 
 
@@ -57,12 +59,17 @@ And optional parameters:
 
 `output_directory` - directory for saving voiced audio (`temp/` is default).
 
+`index_path` - path to the file index for voice model adjustments (default is empty string `""`).
+
+`index_rate` - blending rate between original and indexed voice conversion (default is `0.75`).
+
+
 To set the voice, firstly, make instance of TTS_RVC:
 
 ```python
 from tts_with_rvc import TTS_RVC
 
-tts = TTS_RVC(rvc_path="src\\rvclib", model_path="models\\YourModel.pth", input_directory="input\\")
+tts = TTS_RVC(rvc_path="src\\rvclib", model_path="models\\YourModel.pth", input_directory="input\\", index_path="logs\\YourIndex.index")
 ```
 
 
@@ -81,7 +88,7 @@ Setting the appropriate language is necessary if you are using other languages f
 And final step is calling `tts` to replace voice:
 
 ```python 
-path = tts(text="Привет, мир!", pitch=6)
+path = tts(text="Привет, мир!", pitch=6, index_rate=0.50)
 ```
 
 Parameters:
@@ -105,9 +112,14 @@ A simple example for voicing text:
 from tts_with_rvc import TTS_RVC
 from playsound import playsound
 
-tts = TTS_RVC(rvc_path="src\\rvclib", model_path="models\\DenVot.pth", input_directory="input\\")
+tts = TTS_RVC(
+    rvc_path="src\\rvclib", 
+    model_path="models\\DenVot.pth", 
+    input_directory="input\\",
+    index_path="logs\\added_IVF1749_Flat_nprobe_1.index"
+)
 tts.set_voice("ru-RU-DmitryNeural")
-path = tts(text="Привет, мир!", pitch=6)
+path = tts(text="Привет, мир!", pitch=6, index_rate=0.9)
 
 playsound(path)
 ```

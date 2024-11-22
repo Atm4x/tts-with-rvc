@@ -8,7 +8,7 @@ Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 
 ## Release notes
 
-**0.1.4** - Added index_path and index_rate parameters for more control over index-based voice conversion. 
+**0.1.4** - November 22, 2024: Added `index_path` and `index_rate` parameters for more control over index-based voice conversion
 
 **0.1.3** - fixed a lot problems, some optimization. 
 
@@ -165,6 +165,11 @@ path = tts(message, pitch=args[3],
                tts_volume=args[1],
                tts_pitch=args[2])
 ```
+
+### Methods
+
+`set_index_path(index_path)` - updates the path to the index file for voice model adjustments. 
+
 
 ## Exceptions
 1) NameError:

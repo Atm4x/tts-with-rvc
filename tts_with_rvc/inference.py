@@ -17,10 +17,11 @@ class TTS_RVC:
         self.current_model = model_path
         self.rvc_path = rvc_path
         self.output_directory = output_directory
-        if not os.path.exists(index_path) and index_path != "":
-            print("Index path not found, skipping...")
-        else:
-            print("Index path:", index_path)
+        if(index_path != ""):
+            if not os.path.exists(index_path):
+                print("Index path not found, skipping...")
+            else:
+                print("Index path:", index_path)
         self.index_path = index_path
 
     def set_voice(self, voice):

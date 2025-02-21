@@ -408,7 +408,7 @@ class RMVPE:
 
         # Если чекпойнт ещё не был загружен, грузим и сохраняем в ckpt (кэш).
         if ckpt is None:
-            ckpt = torch.load(model_path, map_location="cpu")
+            ckpt = torch.load(model_path, map_location="cuda")
 
         # Загружаем веса в модель.
         model.load_state_dict(ckpt)

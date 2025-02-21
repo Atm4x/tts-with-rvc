@@ -34,16 +34,16 @@ def torch_rms(x, frame_length, hop_length):
     rms = torch.sqrt((x ** 2).mean(dim=1))
     return rms.numpy()
 
-def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出音频,rate是2的占比
+def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出音频, rate是2的占比
     rms1 = torch_rms(data1, frame_length=sr1 // 2 * 2, hop_length=sr1 // 2)
     rms2 = torch_rms(data2, frame_length=sr2 // 2 * 2, hop_length=sr2 // 2)
     rms1 = torch.from_numpy(rms1)
     rms1 = F.interpolate(
-        rms1.unsqueeze(0), size=data2.shape[0], mode="linear"
+        rms1.unsqueeze(0), size=data2.shape[0], mode="nearest"
     ).squeeze()
     rms2 = torch.from_numpy(rms2)
     rms2 = F.interpolate(
-        rms2.unsqueeze(0), size=data2.shape[0], mode="linear"
+        rms2.unsqueeze(0), size=data2.shape[0], mode="nearest"
     ).squeeze()
     rms2 = torch.max(rms2, torch.zeros_like(rms2) + 1e-6)
     data2 *= (

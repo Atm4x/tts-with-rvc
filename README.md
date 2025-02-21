@@ -14,7 +14,7 @@ Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 
 ## Release notes
 
-**0.1.5** - December 21, 2025: Removed all extra packages, **Removed** `rvc_path`, Added `f0_method` for more control and 
+**0.1.5** - December 21, 2025: Removed all unnecessary packages, **Removed** `rvc_path`, Added `f0_method` for more control and 
 
 **0.1.4** - November 22, 2024: Added `index_path` and `index_rate` parameters for more control over index-based voice conversion
 
@@ -31,7 +31,7 @@ You must have **CUDA or MPS** support for your GPU (mps is not tested yet).
 
 2) Then, install TTS-with-RVC using pip install:
 ```
-python -m pip install git+https://github.com/Atm4x/tts-with-rvc.git@1.5.0-dev#egg=tts_with_rvc
+python -m pip install git+https://github.com/Atm4x/tts-with-rvc.git#egg=tts_with_rvc
 ```
 3) And finally, install [ffmpeg](https://ffmpeg.org/download.html) if you don't already have one, and add it to the folder with your script **or better yet** add ffmpeg to the `Environment variables` in `Path`. 
 

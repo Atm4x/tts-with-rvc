@@ -28,7 +28,8 @@ def cache_harvest_f0(input_audio_path, fs, f0max, f0min, frame_period):
     return f0
 
 def torch_rms(x, frame_length, hop_length):
-    x = torch.from_numpy(x).float()
+    # Ensure the input array has positive strides by making a copy if needed
+    x = torch.from_numpy(x.copy()).float()
     x = x.unfold(0, frame_length, hop_length)
     rms = torch.sqrt((x ** 2).mean(dim=1))
     return rms.numpy()

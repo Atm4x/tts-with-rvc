@@ -13,7 +13,6 @@ bh, ah = signal.butter(N=5, Wn=48, btype="high", fs=16000)
 
 input_audio_path2wav = {}
 
-
 @lru_cache
 def cache_harvest_f0(input_audio_path, fs, f0max, f0min, frame_period):
     audio = input_audio_path2wav[input_audio_path]
@@ -27,16 +26,12 @@ def cache_harvest_f0(input_audio_path, fs, f0max, f0min, frame_period):
     f0 = pyworld.stonemask(audio, f0, t, fs)
     return f0
 
-def torch_rms(x, frame_length, hop_length):
-    x = np.ascontiguousarray(x)  # Устраняем отрицательные шаги
-    x = torch.from_numpy(x).float()  # Преобразуем в тензор
-    x = x.unfold(0, frame_length, hop_length)  # Разбиваем на фреймы
-    rms = torch.sqrt((x ** 2).mean(dim=1))  # Вычисляем RMS
-    return rms.numpy()  # Возвращаем результат как массив NumPy
-
 def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出音频,rate是2的占比
-    rms1 = torch_rms(data1, frame_length=sr1 // 2 * 2, hop_length=sr1 // 2)
-    rms2 = torch_rms(data2, frame_length=sr2 // 2 * 2, hop_length=sr2 // 2)
+    # print(data1.max(),data2.max())
+    rms1 = librosa.feature.rms(
+        y=data1, frame_length=sr1 // 2 * 2, hop_length=sr1 // 2
+    )  # 每半秒一个点
+    rms2 = librosa.feature.rms(y=data2, frame_length=sr2 // 2 * 2, hop_length=sr2 // 2)
     rms1 = torch.from_numpy(rms1)
     rms1 = F.interpolate(
         rms1.unsqueeze(0), size=data2.shape[0], mode="linear"
@@ -51,7 +46,6 @@ def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出�
         * torch.pow(rms2, torch.tensor(rate - 1))
     ).numpy()
     return data2
-
 
 class VC(object):
     def __init__(self, tgt_sr, config):

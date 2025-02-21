@@ -12,9 +12,9 @@ import logging
 from huggingface_hub import hf_hub_download
 
 from multiprocessing import cpu_count
-from vc_infer_pipeline import VC
-from lib.infer_pack.models import SynthesizerTrnMs256NSFsid, SynthesizerTrnMs256NSFsid_nono, SynthesizerTrnMs768NSFsid, SynthesizerTrnMs768NSFsid_nono
-from lib.audio import load_audio
+from tts_with_rvc.vc_infer_pipeline import VC
+from tts_with_rvc.lib.infer_pack.models import SynthesizerTrnMs256NSFsid, SynthesizerTrnMs256NSFsid_nono, SynthesizerTrnMs768NSFsid, SynthesizerTrnMs768NSFsid_nono
+from tts_with_rvc.lib.audio import load_audio
 
 from fairseq import checkpoint_utils
 from scipy.io import wavfile

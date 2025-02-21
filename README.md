@@ -1,6 +1,6 @@
 # **TTS-with-RVC** 0.1.5
 
-#### <span style="color:red">A lot of installations have been removed in this version. If you encounter any errors, report them in the issue and use [version 0.1.4](https://github.com/Atm4x/tts-with-rvc)</span>
+#### <span style="color:red">A lot of unnecessary installations have been removed in this version. If you encounter any errors, report them to issue and use [version 0.1.4](https://github.com/Atm4x/tts-with-rvc)</span>
 
 ***TTS-with-RVC** (Text-to-Speech with RVC)* is a package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing a *RVC* module. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support.
 

@@ -6,3 +6,4 @@
 /venv
 /tts_with_rvc.egg-info
 build
+__pycache__

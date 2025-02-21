@@ -1,4 +1,4 @@
-# **TTS-with-RVC** 0.1.4
+# **TTS-with-RVC** 0.1.5
 
 # **DO NOT USE THIS VERSION NOW, IT'S DEV**
 

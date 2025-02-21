@@ -13,6 +13,7 @@ bh, ah = signal.butter(N=5, Wn=48, btype="high", fs=16000)
 
 input_audio_path2wav = {}
 
+
 @lru_cache
 def cache_harvest_f0(input_audio_path, fs, f0max, f0min, frame_period):
     audio = input_audio_path2wav[input_audio_path]
@@ -25,6 +26,7 @@ def cache_harvest_f0(input_audio_path, fs, f0max, f0min, frame_period):
     )
     f0 = pyworld.stonemask(audio, f0, t, fs)
     return f0
+
 
 def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出音频,rate是2的占比
     # print(data1.max(),data2.max())
@@ -46,6 +48,7 @@ def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出�
         * torch.pow(rms2, torch.tensor(rate - 1))
     ).numpy()
     return data2
+
 
 class VC(object):
     def __init__(self, tgt_sr, config):

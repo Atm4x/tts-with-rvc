@@ -23,6 +23,8 @@ class TTS_RVC:
                 print("Index path:", index_path)
         self.index_path = index_path
 
+        os.environ['TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD'] = '1'
+
     def set_voice(self, voice):
         self.current_voice = voice
     

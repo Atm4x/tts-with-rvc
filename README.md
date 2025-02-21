@@ -1,5 +1,7 @@
 # **TTS-with-RVC** 0.1.4
 
+# **DO NOT USE THIS VERSION NOW, IT'S DEV**
+
 ***TTS-with-RVC** (Text-to-Speech with RVC)* is a package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing a *RVC* module. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support.
 
 Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
@@ -23,21 +25,9 @@ You must have **CUDA or MPS** support for your GPU (mps is not tested yet).
 
 2) Then, install TTS-with-RVC using pip install:
 ```
-python -m pip install git+https://github.com/Atm4x/tts-with-rvc.git#egg=tts_with_rvc
+python -m pip install git+https://github.com/Atm4x/tts-with-rvc.git@1.5.0-dev#egg=tts_with_rvc
 ```
-3) After, install rvc:
-```
-python -m pip install git+https://github.com/Atm4x/rvc-lib.git@dev#egg=rvc
-```
-4) Then, also install rvc but as repo:
-```
-python -m pip install -e git+https://github.com/Atm4x/rvc-lib.git#egg=rvclib
-```  
-5) Near the end, install the [fixed](https://github.com/Atm4x/rvc-tts-pipeline-fix) version of rvc-tts-pipeline:
-```
-python -m pip install git+https://github.com/Atm4x/rvc-tts-pipeline-fix.git@dev#egg=rvc_tts_pipe
-```
-6) And finally, install [ffmpeg](https://ffmpeg.org/download.html) if you don't already have one, and add it to the folder with your script **or better yet** add ffmpeg to the `Environment variables` in `Path`. 
+3) And finally, install [ffmpeg](https://ffmpeg.org/download.html) if you don't already have one, and add it to the folder with your script **or better yet** add ffmpeg to the `Environment variables` in `Path`. 
 
 ## How it Works
 1. **Text-to-Speech (TTS):** Users enter text into the TTS module, which then processes it and generates the corresponding speech as a file saved in the entered input directory

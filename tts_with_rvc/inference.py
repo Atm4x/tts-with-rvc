@@ -3,7 +3,7 @@ import edge_tts as tts
 from edge_tts import VoicesManager
 import asyncio, concurrent.futures
 import gradio as gr
-from rvc_tts_pipeline.rvc_infer import rvc_convert
+from infer import rvc_convert
 import hashlib
 from datetime import datetime
 

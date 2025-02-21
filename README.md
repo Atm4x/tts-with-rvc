@@ -2,7 +2,7 @@
 
 <hr/>
 
-### <span style="color:red">A lot of unnecessary installations have been removed in this version. If you encounter any errors, report them to issue and use [version 0.1.4](https://github.com/Atm4x/tts-with-rvc/tree/0.1.4) </span>
+### <span style="color:red">A lot of unnecessary installations have been removed in this version. If you encounter any errors, report them to Issues and use [version 0.1.4](https://github.com/Atm4x/tts-with-rvc/tree/0.1.4) </span>
 
 <hr/>
 

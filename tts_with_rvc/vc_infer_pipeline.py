@@ -28,22 +28,22 @@ def cache_harvest_f0(input_audio_path, fs, f0max, f0min, frame_period):
     return f0
 
 def torch_rms(x, frame_length, hop_length):
-    # Ensure the input array has positive strides by making a copy if needed
-    x = torch.from_numpy(x.copy()).float()
-    x = x.unfold(0, frame_length, hop_length)
-    rms = torch.sqrt((x ** 2).mean(dim=1))
-    return rms.numpy()
+    x = np.ascontiguousarray(x)  # Устраняем отрицательные шаги
+    x = torch.from_numpy(x).float()  # Преобразуем в тензор
+    x = x.unfold(0, frame_length, hop_length)  # Разбиваем на фреймы
+    rms = torch.sqrt((x ** 2).mean(dim=1))  # Вычисляем RMS
+    return rms.numpy()  # Возвращаем результат как массив NumPy
 
-def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出音频, rate是2的占比
+def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出音频,rate是2的占比
     rms1 = torch_rms(data1, frame_length=sr1 // 2 * 2, hop_length=sr1 // 2)
     rms2 = torch_rms(data2, frame_length=sr2 // 2 * 2, hop_length=sr2 // 2)
     rms1 = torch.from_numpy(rms1)
     rms1 = F.interpolate(
-        rms1.unsqueeze(0), size=data2.shape[0], mode="nearest"
+        rms1.unsqueeze(0), size=data2.shape[0], mode="linear"
     ).squeeze()
     rms2 = torch.from_numpy(rms2)
     rms2 = F.interpolate(
-        rms2.unsqueeze(0), size=data2.shape[0], mode="nearest"
+        rms2.unsqueeze(0), size=data2.shape[0], mode="linear"
     ).squeeze()
     rms2 = torch.max(rms2, torch.zeros_like(rms2) + 1e-6)
     data2 *= (

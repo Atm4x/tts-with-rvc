@@ -52,7 +52,6 @@ class TTS_RVC:
                  index_rate=0.75):
         path = (self.pool.submit
                 (asyncio.run, speech(model_path=self.current_model,
-                                     rvc_path=self.rvc_path,
                                      input_directory=self.input_directory,
                                      text=text,
                                      pitch=pitch,

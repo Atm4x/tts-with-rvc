@@ -1,6 +1,6 @@
 # **TTS-with-RVC** 0.1.5
 
-# **DO NOT USE THIS VERSION NOW, IT'S DEV**
+#### <span style="color:red">A lot of installations features have been removed in this version. If you encounter any errors, report them in the issue and use [version 0.1.4](https://github.com/Atm4x/tts-with-rvc)</span>
 
 ***TTS-with-RVC** (Text-to-Speech with RVC)* is a package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing a *RVC* module. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support.
 
@@ -9,6 +9,8 @@ Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 **It may contain bugs. Report an issue in case of error.**
 
 ## Release notes
+
+**0.1.5** - December 21, 2025: Removed all extra packages, **Removed** `rvc_path`, Added `f0_method` for more control and 
 
 **0.1.4** - November 22, 2024: Added `index_path` and `index_rate` parameters for more control over index-based voice conversion
 
@@ -37,8 +39,6 @@ python -m pip install git+https://github.com/Atm4x/tts-with-rvc.git@1.5.0-dev#eg
 
 TTS-with-RVC has a class called `TTS_RVC`. There are a few parameters that are required:
 
-`rvc_path` - path to your **installed** *rvclib* directory (Usually in the venv/src folder. ) 
-
 `input_directory` - path to your input directory (Temp directory for saving TTS output)
 
 `model_path` - path to your .pth model
@@ -53,13 +53,19 @@ And optional parameters:
 
 `index_rate` - blending rate between original and indexed voice conversion (default is `0.75`).
 
+`f0_method` - method for calculating the pitch of the audio (default is `rmvpe`).
+
+
 
 To set the voice, firstly, make instance of TTS_RVC:
 
 ```python
 from tts_with_rvc import TTS_RVC
 
-tts = TTS_RVC(rvc_path="src\\rvclib", model_path="models\\YourModel.pth", input_directory="input\\", index_path="logs\\YourIndex.index")
+tts = TTS_RVC(model_path="models\\YourModel.pth", 
+                input_directory="input\\", 
+                index_path="logs\\YourIndex.index",
+                f0_method="rmvpe")
 ```
 
 
@@ -103,7 +109,6 @@ from tts_with_rvc import TTS_RVC
 from playsound import playsound
 
 tts = TTS_RVC(
-    rvc_path="src\\rvclib", 
     model_path="models\\DenVot.pth", 
     input_directory="input\\",
     index_path="logs\\added_IVF1749_Flat_nprobe_1.index"
@@ -150,10 +155,10 @@ The `args` variable contains an array with the following structure:
 
 And now we are ready to use it for generation:
 ```python
-path = tts(message, pitch=args[3],
-               tts_rate=args[0],
-               tts_volume=args[1],
-               tts_pitch=args[2])
+path = tts(message, tts_rate=args[0], 
+                    tts_volume=args[1], 
+                    tts_pitch=args[2],
+                    pitch=args[3])
 ```
 
 ### Methods

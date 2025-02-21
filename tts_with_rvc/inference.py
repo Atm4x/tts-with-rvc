@@ -9,13 +9,12 @@ from datetime import datetime
 
 
 class TTS_RVC:
-    def __init__(self, rvc_path, input_directory, model_path, voice="ru-RU-DmitryNeural", index_path="", output_directory=None):
+    def __init__(self, input_directory, model_path, voice="ru-RU-DmitryNeural", index_path="", output_directory=None):
         self.pool = concurrent.futures.ThreadPoolExecutor()
         self.current_voice = voice
         self.input_directory = input_directory
         self.can_speak = True
         self.current_model = model_path
-        self.rvc_path = rvc_path
         self.output_directory = output_directory
         if(index_path != ""):
             if not os.path.exists(index_path):
@@ -74,7 +73,6 @@ class TTS_RVC:
             return
         output_path = rvc_convert(model_path=self.current_model,
                                   input_path=input_path,
-                                  rvc_path=self.rvc_path,
                                   f0_up_key=pitch,
                                   output_filename=filename,
                                   output_dir_path=output_directory,

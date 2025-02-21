@@ -20,8 +20,6 @@ from fairseq import checkpoint_utils
 from scipy.io import wavfile
 
 
-directory = ""
-
 class Config:
     def __init__(self,device,is_half):
         self.device = device
@@ -261,7 +259,6 @@ def load_config():
     return rvc_conf
 
 def rvc_convert(model_path,
-            rvc_path,
             f0_up_key=0,
             input_path=None, 
             output_dir_path=None,
@@ -299,8 +296,7 @@ def rvc_convert(model_path,
         output_file_path (str) : file path and name of tshe output wav file
 
     '''
-    global config, now_dir, hubert_model, tgt_sr, net_g, vc, cpt, device, is_half, version, directory
-    directory = rvc_path
+    global config, now_dir, hubert_model, tgt_sr, net_g, vc, cpt, device, is_half, version
     if not os.path.exists(os.path.join(os.getcwd(), "rmvpe.pt")):
         hf_hub_download(repo_id="lj1995/VoiceConversionWebUI", filename="rmvpe.pt", local_dir=os.getcwd(), token=False)
 
@@ -359,7 +355,7 @@ def rvc_convert(model_path,
 
 def main():
     # Need to comment out yaml setting for input audio
-    rvc_convert(model_path="models\\DenVot.pth", input_path="out.wav", rvc_path="src/rvc")
+    rvc_convert(model_path="models\\DenVot.pth", input_path="out.wav")
 
 if __name__ == "__main__":
     main()

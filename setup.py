@@ -12,5 +12,5 @@ setup(
         "torchaudio",
         "edge-tts"
     ],
-    Scripts=['tts_with_rvc/inference.py']
+    Scripts=['tts_with_rvc/inference.py', 'tts_with_rvc/infer.py', 'tts_with_rvc/vc_infer_pipeline.py']
 )

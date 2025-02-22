@@ -5,7 +5,7 @@ import scipy.signal as signal
 import pyworld, os, traceback, faiss, librosa, torchcrepe
 from scipy import signal
 from functools import lru_cache
-
+import time
 now_dir = os.getcwd()
 sys.path.append(now_dir)
 
@@ -312,19 +312,22 @@ class VC(object):
         audio = signal.filtfilt(bh, ah, audio)
         audio_pad = np.pad(audio, (self.window // 2, self.window // 2), mode="reflect")
         opt_ts = []
+
         if audio_pad.shape[0] > self.t_max:
             audio_sum = np.zeros_like(audio)
             for i in range(self.window):
                 audio_sum += audio_pad[i : i - self.window]
-            for t in range(self.t_center, audio.shape[0], self.t_center):
-                opt_ts.append(
-                    t
-                    - self.t_query
-                    + np.where(
-                        np.abs(audio_sum[t - self.t_query : t + self.t_query])
-                        == np.abs(audio_sum[t - self.t_query : t + self.t_query]).min()
-                    )[0][0]
-                )
+            
+            # Берём только одну центральную точку
+            t = len(audio) // 2  # середина аудио
+            opt_ts.append(
+                t
+                - self.t_query
+                + np.where(
+                    np.abs(audio_sum[t - self.t_query : t + self.t_query])
+                    == np.abs(audio_sum[t - self.t_query : t + self.t_query]).min()
+                )[0][0]
+            )
         s = 0
         audio_opt = []
         t = None
@@ -362,6 +365,8 @@ class VC(object):
             pitchf = torch.tensor(pitchf, device=self.device).unsqueeze(0).float()
         t2 = ttime()
         times[1] += t2 - t1
+
+        t5 = time.time()
         for t in opt_ts:
             t = t // self.window * self.window
             if if_f0 == 1:
@@ -399,6 +404,11 @@ class VC(object):
                     )[self.t_pad_tgt : -self.t_pad_tgt]
                 )
             s = t
+
+        t6 = time.time()
+        print(f"Основная обработка аудио заняла: {t6 - t5:.4f} сек")
+
+
         if if_f0 == 1:
             audio_opt.append(
                 self.vc(

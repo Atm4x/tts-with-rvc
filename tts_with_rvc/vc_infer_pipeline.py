@@ -271,46 +271,34 @@ class VC(object):
         times[2] += t2 - t1
         return audio1
 
-    def pipeline(
-        self,
-        model,
-        net_g,
-        sid,
-        audio,
-        input_audio_path,
-        times,
-        f0_up_key,
-        f0_method,
-        file_index,
-        # file_big_npy,
-        index_rate,
-        if_f0,
-        filter_radius,
-        tgt_sr,
-        resample_sr,
-        rms_mix_rate,
-        version,
-        protect,
-        f0_file=None,
-    ):
-        if (
-            file_index != ""
-            # and file_big_npy != ""
-            # and os.path.exists(file_big_npy) == True
-            and os.path.exists(file_index) == True
-            and index_rate != 0
-        ):
+    def pipeline(self, model, net_g, sid, audio, input_audio_path, times, f0_up_key, 
+            f0_method, file_index, index_rate, if_f0, filter_radius, tgt_sr, 
+            resample_sr, rms_mix_rate, version, protect, f0_file=None):
+    
+        start_time = time.time()
+        
+        # Загрузка индекса
+        if (file_index != "" and os.path.exists(file_index) == True and index_rate != 0):
             try:
                 index = faiss.read_index(file_index)
-                # big_npy = np.load(file_big_npy)
                 big_npy = index.reconstruct_n(0, index.ntotal)
             except:
                 traceback.print_exc()
                 index = big_npy = None
         else:
             index = big_npy = None
+        
+        t1 = time.time()
+        print(f"Загрузка индекса заняла: {t1 - start_time:.4f} сек")
+
+        # Предобработка аудио
         audio = signal.filtfilt(bh, ah, audio)
         audio_pad = np.pad(audio, (self.window // 2, self.window // 2), mode="reflect")
+        
+        t2 = time.time()
+        print(f"Предобработка аудио заняла: {t2 - t1:.4f} сек")
+
+        # Вычисление оптимальных точек разделения
         opt_ts = []
         if audio_pad.shape[0] > self.t_max:
             audio_sum = np.zeros_like(audio)
@@ -318,19 +306,20 @@ class VC(object):
                 audio_sum += audio_pad[i : i - self.window]
             for t in range(self.t_center, audio.shape[0], self.t_center):
                 opt_ts.append(
-                    t
-                    - self.t_query
-                    + np.where(
+                    t - self.t_query + np.where(
                         np.abs(audio_sum[t - self.t_query : t + self.t_query])
                         == np.abs(audio_sum[t - self.t_query : t + self.t_query]).min()
                     )[0][0]
                 )
-        s = 0
-        audio_opt = []
-        t = None
-        t1 = ttime()
+        
+        t3 = time.time()
+        print(f"Вычисление точек разделения заняло: {t3 - t2:.4f} сек")
+
+        # Подготовка входных данных
         audio_pad = np.pad(audio, (self.t_pad, self.t_pad), mode="reflect")
         p_len = audio_pad.shape[0] // self.window
+        
+        # Загрузка F0 файла если есть
         inp_f0 = None
         if hasattr(f0_file, "name") == True:
             try:
@@ -342,17 +331,17 @@ class VC(object):
                 inp_f0 = np.array(inp_f0, dtype="float32")
             except:
                 traceback.print_exc()
+        
+        t4 = time.time()
+        print(f"Подготовка F0 заняла: {t4 - t3:.4f} сек")
+
+        # Обработка F0
         sid = torch.tensor(sid, device=self.device).unsqueeze(0).long()
         pitch, pitchf = None, None
         if if_f0 == 1:
             pitch, pitchf = self.get_f0(
-                input_audio_path,
-                audio_pad,
-                p_len,
-                f0_up_key,
-                f0_method,
-                filter_radius,
-                inp_f0,
+                input_audio_path, audio_pad, p_len, f0_up_key, 
+                f0_method, filter_radius, inp_f0
             )
             pitch = pitch[:p_len]
             pitchf = pitchf[:p_len]
@@ -360,92 +349,78 @@ class VC(object):
                 pitchf = pitchf.astype(np.float32)
             pitch = torch.tensor(pitch, device=self.device).unsqueeze(0).long()
             pitchf = torch.tensor(pitchf, device=self.device).unsqueeze(0).float()
-        t2 = ttime()
-        times[1] += t2 - t1
+        
+        t5 = time.time()
+        print(f"Обработка F0 заняла: {t5 - t4:.4f} сек")
+
+        # Основная обработка аудио
+        s = 0
+        audio_opt = []
+        t = None
         for t in opt_ts:
             t = t // self.window * self.window
             if if_f0 == 1:
                 audio_opt.append(
                     self.vc(
-                        model,
-                        net_g,
-                        sid,
-                        audio_pad[s : t + self.t_pad2 + self.window],
+                        model, net_g, sid, audio_pad[s : t + self.t_pad2 + self.window],
                         pitch[:, s // self.window : (t + self.t_pad2) // self.window],
                         pitchf[:, s // self.window : (t + self.t_pad2) // self.window],
-                        times,
-                        index,
-                        big_npy,
-                        index_rate,
-                        version,
-                        protect,
+                        times, index, big_npy, index_rate, version, protect
                     )[self.t_pad_tgt : -self.t_pad_tgt]
                 )
             else:
                 audio_opt.append(
                     self.vc(
-                        model,
-                        net_g,
-                        sid,
-                        audio_pad[s : t + self.t_pad2 + self.window],
-                        None,
-                        None,
-                        times,
-                        index,
-                        big_npy,
-                        index_rate,
-                        version,
-                        protect,
+                        model, net_g, sid, audio_pad[s : t + self.t_pad2 + self.window],
+                        None, None, times, index, big_npy, index_rate, version, protect
                     )[self.t_pad_tgt : -self.t_pad_tgt]
                 )
             s = t
+
+        t6 = time.time()
+        print(f"Основная обработка аудио заняла: {t6 - t5:.4f} сек")
+
+        # Финальная обработка
         if if_f0 == 1:
             audio_opt.append(
                 self.vc(
-                    model,
-                    net_g,
-                    sid,
-                    audio_pad[t:],
+                    model, net_g, sid, audio_pad[t:],
                     pitch[:, t // self.window :] if t is not None else pitch,
                     pitchf[:, t // self.window :] if t is not None else pitchf,
-                    times,
-                    index,
-                    big_npy,
-                    index_rate,
-                    version,
-                    protect,
+                    times, index, big_npy, index_rate, version, protect
                 )[self.t_pad_tgt : -self.t_pad_tgt]
             )
         else:
             audio_opt.append(
                 self.vc(
-                    model,
-                    net_g,
-                    sid,
-                    audio_pad[t:],
-                    None,
-                    None,
-                    times,
-                    index,
-                    big_npy,
-                    index_rate,
-                    version,
-                    protect,
+                    model, net_g, sid, audio_pad[t:],
+                    None, None, times, index, big_npy, index_rate, version, protect
                 )[self.t_pad_tgt : -self.t_pad_tgt]
             )
+
+        # Постобработка
         audio_opt = np.concatenate(audio_opt)
         if rms_mix_rate != 1:
             audio_opt = change_rms(audio, 16000, audio_opt, tgt_sr, rms_mix_rate)
         if resample_sr >= 16000 and tgt_sr != resample_sr:
-            audio_opt = librosa.resample(
-                audio_opt, orig_sr=tgt_sr, target_sr=resample_sr
-            )
+            audio_opt = librosa.resample(audio_opt, orig_sr=tgt_sr, target_sr=resample_sr)
+        
+        t7 = time.time()
+        print(f"Постобработка заняла: {t7 - t6:.4f} сек")
+
+        # Нормализация и очистка памяти
         audio_max = np.abs(audio_opt).max() / 0.99
         max_int16 = 32768
         if audio_max > 1:
             max_int16 /= audio_max
         audio_opt = (audio_opt * max_int16).astype(np.int16)
+        
         del pitch, pitchf, sid
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+        
+        end_time = time.time()
+        print(f"Финальная нормализация заняла: {end_time - t7:.4f} сек")
+        print(f"Общее время выполнения: {end_time - start_time:.4f} сек")
+        
         return audio_opt

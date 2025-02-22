@@ -170,112 +170,106 @@ class VC(object):
         f0_coarse = np.rint(f0_mel).astype(np.int32)
         return f0_coarse, f0bak  # 1-0
 
-    def vc(self, model, net_g, sid, audio0, pitch, pitchf, times, index, big_npy, 
-       index_rate, version, protect):
-    
-        start_time = time.time()
-        
-        # Подготовка входных данных
+    def vc(
+        self,
+        model,
+        net_g,
+        sid,
+        audio0,
+        pitch,
+        pitchf,
+        times,
+        index,
+        big_npy,
+        index_rate,
+        version,
+        protect,
+    ):  # ,file_index,file_big_npy
         feats = torch.from_numpy(audio0)
         if self.is_half:
             feats = feats.half()
         else:
             feats = feats.float()
-        if feats.dim() == 2:
+        if feats.dim() == 2:  # double channels
             feats = feats.mean(-1)
         assert feats.dim() == 1, feats.dim()
         feats = feats.view(1, -1)
         padding_mask = torch.BoolTensor(feats.shape).to(self.device).fill_(False)
-        
-        t1 = time.time()
-        print(f"Подготовка входных данных заняла: {t1 - start_time:.4f} сек")
 
-        # Извлечение признаков
         inputs = {
             "source": feats.to(self.device),
             "padding_mask": padding_mask,
             "output_layer": 9 if version == "v1" else 12,
         }
-        
+        t0 = ttime()
         with torch.no_grad():
             logits = model.extract_features(**inputs)
             feats = model.final_proj(logits[0]) if version == "v1" else logits[0]
-        
-        t2 = time.time()
-        print(f"Извлечение признаков заняла: {t2 - t1:.4f} сек")
-
-        # Защита и клонирование
-        if protect < 0.5 and pitch is not None and pitchf is not None:
+        if protect < 0.5 and pitch != None and pitchf != None:
             feats0 = feats.clone()
-        
-        # Обработка индекса
-        if isinstance(index, type(None)) == False and isinstance(big_npy, type(None)) == False and index_rate != 0:
+        if (
+            isinstance(index, type(None)) == False
+            and isinstance(big_npy, type(None)) == False
+            and index_rate != 0
+        ):
             npy = feats[0].cpu().numpy()
             if self.is_half:
                 npy = npy.astype("float32")
-            
+
+            # _, I = index.search(npy, 1)
+            # npy = big_npy[I.squeeze()]
+
             score, ix = index.search(npy, k=8)
             weight = np.square(1 / score)
             weight /= weight.sum(axis=1, keepdims=True)
             npy = np.sum(big_npy[ix] * np.expand_dims(weight, axis=2), axis=1)
-            
+
             if self.is_half:
                 npy = npy.astype("float16")
-            feats = torch.from_numpy(npy).unsqueeze(0).to(self.device) * index_rate + (1 - index_rate) * feats
-        
-        t3 = time.time()
-        print(f"Обработка индекса заняла: {t3 - t2:.4f} сек")
+            feats = (
+                torch.from_numpy(npy).unsqueeze(0).to(self.device) * index_rate
+                + (1 - index_rate) * feats
+            )
 
-        # Интерполяция и защита
         feats = F.interpolate(feats.permute(0, 2, 1), scale_factor=2).permute(0, 2, 1)
-        if protect < 0.5 and pitch is not None and pitchf is not None:
-            feats0 = F.interpolate(feats0.permute(0, 2, 1), scale_factor=2).permute(0, 2, 1)
-        
-        t4 = time.time()
-        print(f"Интерполяция заняла: {t4 - t3:.4f} сек")
-
-        # Обработка длины и питча
+        if protect < 0.5 and pitch != None and pitchf != None:
+            feats0 = F.interpolate(feats0.permute(0, 2, 1), scale_factor=2).permute(
+                0, 2, 1
+            )
+        t1 = ttime()
         p_len = audio0.shape[0] // self.window
         if feats.shape[1] < p_len:
             p_len = feats.shape[1]
-            if pitch is not None and pitchf is not None:
+            if pitch != None and pitchf != None:
                 pitch = pitch[:, :p_len]
                 pitchf = pitchf[:, :p_len]
 
-        if protect < 0.5 and pitch is not None and pitchf is not None:
+        if protect < 0.5 and pitch != None and pitchf != None:
             pitchff = pitchf.clone()
             pitchff[pitchf > 0] = 1
             pitchff[pitchf < 1] = protect
             pitchff = pitchff.unsqueeze(-1)
             feats = feats * pitchff + feats0 * (1 - pitchff)
             feats = feats.to(feats0.dtype)
-        
-        t5 = time.time()
-        print(f"Обработка питча заняла: {t5 - t4:.4f} сек")
-
-        # Генерация аудио
         p_len = torch.tensor([p_len], device=self.device).long()
         with torch.no_grad():
-            if pitch is not None and pitchf is not None:
-                audio1 = (net_g.infer(feats, p_len, pitch, pitchf, sid)[0][0, 0]).data.cpu().float().numpy()
+            if pitch != None and pitchf != None:
+                audio1 = (
+                    (net_g.infer(feats, p_len, pitch, pitchf, sid)[0][0, 0])
+                    .data.cpu()
+                    .float()
+                    .numpy()
+                )
             else:
-                audio1 = (net_g.infer(feats, p_len, sid)[0][0, 0]).data.cpu().float().numpy()
-        
-        t6 = time.time()
-        print(f"Генерация аудио заняла: {t6 - t5:.4f} сек")
-
-        # Очистка памяти
+                audio1 = (
+                    (net_g.infer(feats, p_len, sid)[0][0, 0]).data.cpu().float().numpy()
+                )
         del feats, p_len, padding_mask
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        
-        end_time = time.time()
-        print(f"Очистка памяти заняла: {end_time - t6:.4f} сек")
-        print(f"Общее время выполнения: {end_time - start_time:.4f} сек")
-        
-        times[0] += t2 - t1  # время извлечения признаков
-        times[2] += t6 - t5  # время генерации аудио
-        
+        t2 = ttime()
+        times[0] += t1 - t0
+        times[2] += t2 - t1
         return audio1
 
     def pipeline(
@@ -369,43 +363,76 @@ class VC(object):
             pitchf = torch.tensor(pitchf, device=self.device).unsqueeze(0).float()
         t2 = ttime()
         times[1] += t2 - t1
+        t5 = time.time()
+        audio_pad_tensor = torch.from_numpy(audio_pad).to(self.device).float()  # Предполагаем, что audio_pad имеет тип float32
+        audio_opt_tensors = []  # Список для хранения тензоров на GPU
+        s = 0
+        t = None
+
+        # Основной цикл обработки
         for t in opt_ts:
             t = t // self.window * self.window
+            audio_segment = audio_pad_tensor[s : t + self.t_pad2 + self.window]
             if if_f0 == 1:
-                audio_opt.append(
-                    self.vc(
-                        model,
-                        net_g,
-                        sid,
-                        audio_pad[s : t + self.t_pad2 + self.window],
-                        pitch[:, s // self.window : (t + self.t_pad2) // self.window],
-                        pitchf[:, s // self.window : (t + self.t_pad2) // self.window],
-                        times,
-                        index,
-                        big_npy,
-                        index_rate,
-                        version,
-                        protect,
-                    )[self.t_pad_tgt : -self.t_pad_tgt]
-                )
+                pitch_segment = pitch[:, s // self.window : (t + self.t_pad2) // self.window]
+                pitchf_segment = pitchf[:, s // self.window : (t + self.t_pad2) // self.window]
+                result = self.vc(
+                    model, net_g, sid, audio_segment,
+                    pitch_segment, pitchf_segment,
+                    times, index, big_npy, index_rate, version, protect
+                )[self.t_pad_tgt : -self.t_pad_tgt]
             else:
-                audio_opt.append(
-                    self.vc(
-                        model,
-                        net_g,
-                        sid,
-                        audio_pad[s : t + self.t_pad2 + self.window],
-                        None,
-                        None,
-                        times,
-                        index,
-                        big_npy,
-                        index_rate,
-                        version,
-                        protect,
-                    )[self.t_pad_tgt : -self.t_pad_tgt]
-                )
+                result = self.vc(
+                    model, net_g, sid, audio_segment,
+                    None, None,
+                    times, index, big_npy, index_rate, version, protect
+                )[self.t_pad_tgt : -self.t_pad_tgt]
+            audio_opt_tensors.append(result)
             s = t
+
+        # Обработка оставшегося аудио
+        if t is not None:
+            audio_segment = audio_pad_tensor[t:]
+            if if_f0 == 1:
+                pitch_segment = pitch[:, t // self.window :] if t is not None else pitch
+                pitchf_segment = pitchf[:, t // self.window :] if t is not None else pitchf
+                result = self.vc(
+                    model, net_g, sid, audio_segment,
+                    pitch_segment, pitchf_segment,
+                    times, index, big_npy, index_rate, version, protect
+                )[self.t_pad_tgt : -self.t_pad_tgt]
+            else:
+                result = self.vc(
+                    model, net_g, sid, audio_segment,
+                    None, None,
+                    times, index, big_npy, index_rate, version, protect
+                )[self.t_pad_tgt : -self.t_pad_tgt]
+            audio_opt_tensors.append(result)
+        else:
+            # Если opt_ts пуст, обрабатываем весь audio_pad
+            audio_segment = audio_pad_tensor
+            if if_f0 == 1:
+                result = self.vc(
+                    model, net_g, sid, audio_segment,
+                    pitch, pitchf,
+                    times, index, big_npy, index_rate, version, protect
+                )[self.t_pad_tgt : -self.t_pad_tgt]
+            else:
+                result = self.vc(
+                    model, net_g, sid, audio_segment,
+                    None, None,
+                    times, index, big_npy, index_rate, version, protect
+                )[self.t_pad_tgt : -self.t_pad_tgt]
+            audio_opt_tensors.append(result)
+
+        # Объединяем результаты на GPU и переносим на CPU один раз
+        audio_opt_tensor = torch.cat(audio_opt_tensors, dim=0)  # Предполагаем, что аудио — 1D тензоры
+        audio_opt = audio_opt_tensor.cpu().numpy()
+
+        t6 = time.time()
+        print(f"Основная обработка аудио заняла: {t6 - t5:.4f} сек")
+
+        
         if if_f0 == 1:
             audio_opt.append(
                 self.vc(

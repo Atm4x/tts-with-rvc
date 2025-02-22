@@ -329,6 +329,7 @@ ckpt = None
 
 class RMVPE:
     def __init__(self, model_path, is_half, device=None):
+        print("TEST FOR RMVPE EXTRA INIT")
         self.resample_kernel = {}
         global ckpt
         model = E2E(4, 1, (2, 2))

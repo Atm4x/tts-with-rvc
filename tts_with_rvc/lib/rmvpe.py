@@ -1,6 +1,7 @@
 import torch, numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
+import time
 
 
 class BiGRU(nn.Module):
@@ -367,23 +368,39 @@ class RMVPE:
         # f0 = np.array([10 * (2 ** (cent_pred / 1200)) if cent_pred else 0 for cent_pred in cents_pred])
         return f0
 
+
     def infer_from_audio(self, audio, thred=0.03):
+        start_time = time.time()
+        
         audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
-        # torch.cuda.synchronize()
-        # t0=ttime()
+        t1 = time.time()
+        print(f"Преобразование аудио заняло: {t1 - start_time:.4f} сек")
+        
         mel = self.mel_extractor(audio, center=True)
-        # torch.cuda.synchronize()
-        # t1=ttime()
+        t2 = time.time()
+        print(f"Извлечение mel-спектрограммы заняло: {t2 - t1:.4f} сек")
+        
         hidden = self.mel2hidden(mel)
-        # torch.cuda.synchronize()
-        # t2=ttime()
+        t3 = time.time()
+        print(f"Преобразование mel в hidden заняло: {t3 - t2:.4f} сек")
+        
         hidden = hidden.squeeze(0).cpu().numpy()
+        t4 = time.time()
+        print(f"Преобразование hidden в numpy заняло: {t4 - t3:.4f} сек")
+        
         if self.is_half == True:
             hidden = hidden.astype("float32")
+            t5 = time.time()
+            print(f"Приведение к float32 заняло: {t5 - t4:.4f} сек")
+        else:
+            t5 = t4
+            
         f0 = self.decode(hidden, thred=thred)
-        # torch.cuda.synchronize()
-        # t3=ttime()
-        # print("hmvpe:%s\t%s\t%s\t%s"%(t1-t0,t2-t1,t3-t2,t3-t0))
+        t6 = time.time()
+        print(f"Декодирование заняло: {t6 - t5:.4f} сек")
+        
+        print(f"Общее время выполнения: {t6 - start_time:.4f} сек")
+        
         return f0
 
     def to_local_average_cents(self, salience, thred=0.05):

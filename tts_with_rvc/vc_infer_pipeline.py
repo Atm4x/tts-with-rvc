@@ -5,7 +5,6 @@ import scipy.signal as signal
 import pyworld, os, traceback, faiss, librosa, torchcrepe
 from scipy import signal
 from functools import lru_cache
-import time
 
 now_dir = os.getcwd()
 sys.path.append(now_dir)
@@ -363,76 +362,43 @@ class VC(object):
             pitchf = torch.tensor(pitchf, device=self.device).unsqueeze(0).float()
         t2 = ttime()
         times[1] += t2 - t1
-        t5 = time.time()
-        audio_pad_tensor = torch.from_numpy(audio_pad).to(self.device).float()  # Предполагаем, что audio_pad имеет тип float32
-        audio_opt_tensors = []  # Список для хранения тензоров на GPU
-        s = 0
-        t = None
-
-        # Основной цикл обработки
         for t in opt_ts:
             t = t // self.window * self.window
-            audio_segment = audio_pad_tensor[s : t + self.t_pad2 + self.window]
             if if_f0 == 1:
-                pitch_segment = pitch[:, s // self.window : (t + self.t_pad2) // self.window]
-                pitchf_segment = pitchf[:, s // self.window : (t + self.t_pad2) // self.window]
-                result = self.vc(
-                    model, net_g, sid, audio_segment,
-                    pitch_segment, pitchf_segment,
-                    times, index, big_npy, index_rate, version, protect
-                )[self.t_pad_tgt : -self.t_pad_tgt]
+                audio_opt.append(
+                    self.vc(
+                        model,
+                        net_g,
+                        sid,
+                        audio_pad[s : t + self.t_pad2 + self.window],
+                        pitch[:, s // self.window : (t + self.t_pad2) // self.window],
+                        pitchf[:, s // self.window : (t + self.t_pad2) // self.window],
+                        times,
+                        index,
+                        big_npy,
+                        index_rate,
+                        version,
+                        protect,
+                    )[self.t_pad_tgt : -self.t_pad_tgt]
+                )
             else:
-                result = self.vc(
-                    model, net_g, sid, audio_segment,
-                    None, None,
-                    times, index, big_npy, index_rate, version, protect
-                )[self.t_pad_tgt : -self.t_pad_tgt]
-            audio_opt_tensors.append(result)
+                audio_opt.append(
+                    self.vc(
+                        model,
+                        net_g,
+                        sid,
+                        audio_pad[s : t + self.t_pad2 + self.window],
+                        None,
+                        None,
+                        times,
+                        index,
+                        big_npy,
+                        index_rate,
+                        version,
+                        protect,
+                    )[self.t_pad_tgt : -self.t_pad_tgt]
+                )
             s = t
-
-        # Обработка оставшегося аудио
-        if t is not None:
-            audio_segment = audio_pad_tensor[t:]
-            if if_f0 == 1:
-                pitch_segment = pitch[:, t // self.window :] if t is not None else pitch
-                pitchf_segment = pitchf[:, t // self.window :] if t is not None else pitchf
-                result = self.vc(
-                    model, net_g, sid, audio_segment,
-                    pitch_segment, pitchf_segment,
-                    times, index, big_npy, index_rate, version, protect
-                )[self.t_pad_tgt : -self.t_pad_tgt]
-            else:
-                result = self.vc(
-                    model, net_g, sid, audio_segment,
-                    None, None,
-                    times, index, big_npy, index_rate, version, protect
-                )[self.t_pad_tgt : -self.t_pad_tgt]
-            audio_opt_tensors.append(result)
-        else:
-            # Если opt_ts пуст, обрабатываем весь audio_pad
-            audio_segment = audio_pad_tensor
-            if if_f0 == 1:
-                result = self.vc(
-                    model, net_g, sid, audio_segment,
-                    pitch, pitchf,
-                    times, index, big_npy, index_rate, version, protect
-                )[self.t_pad_tgt : -self.t_pad_tgt]
-            else:
-                result = self.vc(
-                    model, net_g, sid, audio_segment,
-                    None, None,
-                    times, index, big_npy, index_rate, version, protect
-                )[self.t_pad_tgt : -self.t_pad_tgt]
-            audio_opt_tensors.append(result)
-
-        # Объединяем результаты на GPU и переносим на CPU один раз
-        audio_opt_tensor = torch.cat(audio_opt_tensors, dim=0)  # Предполагаем, что аудио — 1D тензоры
-        audio_opt = audio_opt_tensor.cpu().numpy()
-
-        t6 = time.time()
-        print(f"Основная обработка аудио заняла: {t6 - t5:.4f} сек")
-
-        
         if if_f0 == 1:
             audio_opt.append(
                 self.vc(

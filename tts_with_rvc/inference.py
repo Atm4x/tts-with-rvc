@@ -89,6 +89,34 @@ class TTS_RVC:
         ))
         
         return path
+    
+    async def async_call(self,
+                    text,
+                    pitch=0,
+                    tts_rate=0,
+                    tts_volume=0,
+                    tts_pitch=0,
+                    output_filename=None,
+                    index_rate=0.75):
+        """Асинхронный вариант метода __call__"""
+        
+        path = await speech(
+            model_path=self.current_model,
+            input_directory=self.input_directory,
+            text=text,
+            pitch=pitch,
+            voice=self.current_voice,
+            tts_add_rate=tts_rate,
+            tts_add_volume=tts_volume,
+            tts_add_pitch=tts_pitch,
+            output_directory=self.output_directory,
+            filename=output_filename,
+            index_path=self.index_path,
+            index_rate=index_rate,
+            f0_method=self.f0_method
+        )
+        
+        return path
 
     def process_args(self, text):
         rate_param, text = process_text(text, param="--tts-rate")

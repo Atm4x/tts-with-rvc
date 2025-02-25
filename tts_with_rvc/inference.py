@@ -157,25 +157,17 @@ async def tts_communicate(input_directory,
                                   rate=f'{"+" if tts_add_rate >= 0 else ""}{tts_add_rate}%',
                                   volume=f'{"+" if tts_add_volume >= 0 else ""}{tts_add_volume}%',
                                   pitch=f'{"+" if tts_add_pitch >= 0 else ""}{tts_add_pitch}Hz')
-    file_name = date_to_short_hash() + ".wav"
+    file_name = date_to_short_hash()
     input_path = os.path.join(input_directory, file_name)
+    print("СРАБОТАЛО ПЕРЕД .save")
     await communicate.save(input_path)
+    print(f"СРАБОТАЛО ПОСЛЕ .save - {input_path}")
     return input_path, file_name
 
 
-async def speech(model_path,
-                 input_directory,
-                 text,
-                 pitch=0,
-                 voice="ru-RU-DmitryNeural",
-                 tts_add_rate=0,
-                 tts_add_volume=0,
-                 tts_add_pitch=0,
-                 filename=None,
-                 output_directory=None,
-                 index_path="",
-                 index_rate=0.75,
-                 f0_method="rmvpe"):
+async def speech(model_path, input_directory, text, pitch=0, voice="ru-RU-DmitryNeural",
+                 tts_add_rate=0, tts_add_volume=0, tts_add_pitch=0, filename=None,
+                 output_directory=None, index_path="", index_rate=0.75, f0_method="rmvpe"):
     
     # Генерируем аудио с помощью edge-tts
     input_path, file_name = await tts_communicate(
@@ -187,17 +179,31 @@ async def speech(model_path,
         tts_add_pitch=tts_add_pitch
     )
     
+    # Добавляем небольшую задержку, чтобы убедиться, что файл полностью записан
+    await asyncio.sleep(0.5)
+    
+    # Проверяем, что файл существует и имеет размер больше 0
+    if not os.path.exists(input_path) or os.path.getsize(input_path) == 0:
+        raise FileNotFoundError(f"Edge TTS не создал аудиофайл или файл пустой: {input_path}")
+    
     # Применяем RVC (это синхронная операция)
-    output_path = rvc_convert(
-        model_path=model_path,
-        input_path=input_path,
-        f0_up_key=pitch,
-        f0method=f0_method,
-        output_filename=filename,
-        output_dir_path=output_directory,
-        file_index=index_path,
-        index_rate=index_rate
-    )
+    try:
+        output_path = rvc_convert(
+            model_path=model_path,
+            input_path=input_path,
+            f0_up_key=pitch,
+            f0method=f0_method,
+            output_filename=filename,
+            output_dir_path=output_directory,
+            file_index=index_path,
+            index_rate=index_rate
+        )
+    except Exception as e:
+        # Обрабатываем ошибку и пытаемся предоставить больше информации
+        print(f"Ошибка при конвертации файла {input_path}: {e}")
+        print(f"Размер файла: {os.path.getsize(input_path)} байт")
+        # Не удаляем входной файл в случае ошибки, чтобы его можно было проверить
+        raise
     
     # Генерируем хеш для имени файла, если имя не указано
     name = date_to_short_hash()
@@ -213,7 +219,10 @@ async def speech(model_path,
         output_path = new_path
 
     # Удаляем временный файл
-    os.remove(input_path)
+    try:
+        os.remove(input_path)
+    except:
+        print(f"Не удалось удалить временный файл: {input_path}")
     
     return os.path.abspath(output_path)
 

@@ -22,7 +22,7 @@ Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 
 ## Prerequisites
 
-You must have **Python<=3.10** installed (3.10 is recommended).
+You must have **Python<=3.12** installed (3.12 is recommended, mostly tested on 3.10).
 
 You must have **CUDA or MPS** support for your GPU (mps is not tested yet).
 

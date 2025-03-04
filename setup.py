@@ -54,7 +54,8 @@ setup(
         "httpx==0.23.0",
         "torchcrepe==0.0.20",
         "fastapi==0.88",
-        "ffmpy==0.3.1"
+        "ffmpy==0.3.1",
+        "nest_asyncio"
     ],
     scripts=['tts_with_rvc/inference.py']
 )

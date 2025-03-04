@@ -12,13 +12,15 @@ setup(
         "torchaudio",
         "edge-tts",
         "joblib>=1.1.0",
-        "numba==0.56.4",
-        "numpy==1.23.5",
-        "scipy==1.9.3",
+        "omegaconf==2.3.0",
+        "hydra-core==1.3.2",
+        "antlr4-python3-runtime==4.9.3",
+        "numba==0.59.0",
+        "numpy==1.26.0",
         "librosa==0.9.1",
-        "llvmlite==0.39.0",
-        "fairseq==0.12.2",
-        "faiss-cpu==1.7.3",
+        "llvmlite==0.42.0",
+        "fairseq @ git+https://github.com/One-sixth/fairseq.git",
+        "faiss-cpu==1.10.0",
         "gradio==3.14.0",
         "Cython",
         "pydub>=0.25.1",
@@ -53,8 +55,7 @@ setup(
         "httpx==0.23.0",
         "torchcrepe==0.0.20",
         "fastapi==0.88",
-        "ffmpy==0.3.1",
-        "nest_asyncio"
+        "ffmpy==0.3.1"
     ],
     scripts=['tts_with_rvc/inference.py']
 )

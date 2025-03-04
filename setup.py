@@ -21,7 +21,6 @@ setup(
         "llvmlite==0.42.0",
         "fairseq @ git+https://github.com/One-sixth/fairseq.git",
         "faiss-cpu==1.10.0",
-        "gradio==3.14.0",
         "Cython",
         "pydub>=0.25.1",
         "soundfile>=0.12.1",

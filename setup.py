@@ -51,7 +51,7 @@ setup(
         "uvicorn>=0.21.1",
         "colorama>=0.4.5",
         "pyworld==0.3.2",
-        "httpx==0.23.0",
+        "httpx>=0.23.0",
         "torchcrepe==0.0.20",
         "fastapi==0.88",
         "ffmpy==0.3.1",

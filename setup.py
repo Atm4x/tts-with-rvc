@@ -17,7 +17,7 @@ setup(
         "antlr4-python3-runtime==4.9.3",
         "numba==0.59.0",
         "numpy==1.26.0",
-        "librosa>=0.9.1",
+        "librosa==0.9.1",
         "llvmlite==0.42.0",
         "fairseq @ git+https://github.com/One-sixth/fairseq.git",
         "faiss-cpu==1.10.0",

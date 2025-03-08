@@ -118,6 +118,53 @@ class TTS_RVC:
         
         return path
 
+    def convert_audio(self,
+                     input_path,
+                     pitch=0,
+                     output_filename=None,
+                     index_rate=0.75):
+        """
+        Обрабатывает существующий аудиофайл через RVC без использования TTS.
+        
+        Args:
+            input_path (str): Путь к входному аудиофайлу для конвертации
+            pitch (int): Изменение высоты голоса (в полутонах)
+            output_filename (str, optional): Имя выходного файла
+            index_rate (float): Скорость индексирования, по умолчанию 0.75
+            
+        Returns:
+            str: Путь к сконвертированному аудиофайлу
+        """
+        if not os.path.exists(input_path):
+            raise FileNotFoundError(f"Входной аудиофайл не найден: {input_path}")
+        
+        # Применяем RVC напрямую к существующему аудиофайлу
+        output_path = rvc_convert(
+            model_path=self.current_model,
+            input_path=input_path,
+            f0_up_key=pitch,
+            f0method=self.f0_method,
+            output_filename=output_filename,
+            output_dir_path=self.output_directory,
+            file_index=self.index_path,
+            index_rate=index_rate
+        )
+        
+        # Если имя файла не указано, генерируем новое имя
+        if output_filename is None:
+            name = date_to_short_hash()
+            if self.output_directory is None:
+                output_directory = "temp"
+                # Создаем директорию, если её нет
+                if not os.path.exists(output_directory):
+                    os.makedirs(output_directory)
+                
+            new_path = os.path.join(output_directory, name + ".wav")
+            os.rename(output_path, new_path)
+            output_path = new_path
+        
+        return os.path.abspath(output_path)
+
     def process_args(self, text):
         rate_param, text = process_text(text, param="--tts-rate")
         volume_param, text = process_text(text, param="--tts-volume")

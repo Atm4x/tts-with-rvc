@@ -70,7 +70,7 @@ class TTS_RVC:
                     
                 # Import OnnxRVC when using ONNX backend
                 try:
-                    from tts_with_rvc.infer.lib.infer_pack.onnx_inference import OnnxRVC
+                    from tts_with_rvc.lib.infer_pack.onnx_inference import OnnxRVC
                     self.onnx_model = OnnxRVC(
                         self.current_model,
                         vec_path=self.vec_path,

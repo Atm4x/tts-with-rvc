@@ -1,7 +1,7 @@
 import numpy as np
 import pyworld
 
-from infer.lib.infer_pack.modules.F0Predictor.F0Predictor import F0Predictor
+from tts_with_rvc.lib.infer_pack.modules.F0Predictor.F0Predictor import F0Predictor
 
 
 class DioF0Predictor(F0Predictor):

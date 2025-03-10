@@ -39,7 +39,7 @@ class ContentVec:
 
 def get_f0_predictor(f0_predictor, hop_length, sampling_rate, **kargs):
     if f0_predictor == "dio":
-        from tts_with_rvc.infer.lib.infer_pack.modules.F0Predictor.DioF0Predictor import DioF0Predictor
+        from tts_with_rvc.lib.infer_pack.modules.F0Predictor.DioF0Predictor import DioF0Predictor
 
         f0_predictor_object = DioF0Predictor(
             hop_length=hop_length, sampling_rate=sampling_rate

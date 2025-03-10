@@ -7,7 +7,7 @@ from torch.nn import functional as F
 
 from tts_with_rvc.lib.infer_pack import commons
 from tts_with_rvc.lib.infer_pack import modules
-from tts_with_rvc.lib.infer_pack.modules import LayerNorm
+from tts_with_rvc.lib.infer_pack.torch_modules import LayerNorm
 
 
 class Encoder(nn.Module):

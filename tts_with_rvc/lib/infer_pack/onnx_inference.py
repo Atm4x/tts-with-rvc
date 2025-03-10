@@ -83,7 +83,7 @@ class OnnxRVC:
         return (self.model.run(None, onnx_input)[0] * 32767).astype(np.int16)
 
     def segment_audio(self, wav, sr):
-        segment_length = sr * 50  # Maximum segment length of 50 seconds
+        segment_length = sr * 500  # Maximum segment length of 50 seconds
         lookback_window = sr * 10  # Lookback window for 10 seconds
 
         segments = []

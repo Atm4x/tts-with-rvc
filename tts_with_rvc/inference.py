@@ -2,23 +2,38 @@ import os
 import edge_tts as tts
 import asyncio
 import concurrent.futures
-from tts_with_rvc.infer import rvc_convert
 import hashlib
 from datetime import datetime
 import nest_asyncio
 import threading
+import importlib
 
 # Применяем nest_asyncio для избежания конфликтов с циклами событий
 nest_asyncio.apply()
 
 class TTS_RVC:
-    def __init__(self, input_directory, model_path, voice="ru-RU-DmitryNeural", index_path="", f0_method="rmvpe", output_directory=None):
+    def __init__(self, input_directory, model_path, voice="ru-RU-DmitryNeural", index_path="", 
+                 f0_method="rmvpe", output_directory=None, backend="cuda", sampling_rate=40000, 
+                 hop_size=512, device=None):
         self.current_voice = voice
         self.input_directory = input_directory
         self.can_speak = True
         self.current_model = model_path
         self.output_directory = output_directory
         self.f0_method = f0_method
+        self.backend = backend.lower()  # 'cuda' or 'onnx'
+        self.sampling_rate = sampling_rate
+        self.hop_size = hop_size
+        
+        # Default device settings based on backend
+        if device is None:
+            if self.backend == 'onnx':
+                self.device = 'dml'  # Default for ONNX (DirectML)
+            else:
+                self.device = 'cuda'  # Default for CUDA
+        else:
+            self.device = device
+            
         # Создаем выделенный цикл событий для асинхронных операций
         self.loop = asyncio.new_event_loop()
         self._loop_thread = None
@@ -31,8 +46,51 @@ class TTS_RVC:
                 print("Index path:", index_path)
         self.index_path = index_path
 
-        os.environ['TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD'] = '1'
+        # Initialize the appropriate backend
+        self._initialize_backend()
         
+    def _initialize_backend(self):
+        """Initialize the appropriate RVC backend based on configuration"""
+        if self.backend == 'onnx':
+            try:
+                # Only import ONNX dependencies when needed
+                from huggingface_hub import hf_hub_download
+                import onnxruntime
+                
+                # Check for vec model and download if needed
+                self.vec_path = "vec-768-layer-12.onnx"
+                if not os.path.exists(os.path.join(os.getcwd(), self.vec_path)):
+                    print("Downloading vec model for ONNX backend...")
+                    hf_hub_download(
+                        repo_id="NaruseMioShirakana/MoeSS-SUBModel", 
+                        filename=self.vec_path, 
+                        local_dir=os.getcwd(), 
+                        token=False
+                    )
+                    
+                # Import OnnxRVC when using ONNX backend
+                try:
+                    from tts_with_rvc.infer.lib.infer_pack.onnx_inference import OnnxRVC
+                    self.onnx_model = OnnxRVC(
+                        self.current_model,
+                        vec_path=self.vec_path,
+                        sr=self.sampling_rate,
+                        hop_size=self.hop_size,
+                        device=self.device
+                    )
+                    print(f"ONNX backend initialized with device: {self.device}")
+                except ImportError:
+                    print("Failed to import OnnxRVC. Make sure the package is installed with [onnx] extras.")
+                    raise
+                    
+            except ImportError:
+                print("ONNX dependencies not found. Install with: pip install tts_with_rvc[onnx]")
+                raise
+        else:
+            # For CUDA backend, we need to set environment variable
+            os.environ['TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD'] = '1'
+            # We'll import the CUDA-based rvc_convert on demand
+            
     def _start_background_loop(self):
         """Запускает цикл событий в отдельном потоке"""
         if self._loop_thread is not None:
@@ -44,7 +102,15 @@ class TTS_RVC:
             
         self._loop_thread = threading.Thread(target=_run_loop, args=(self.loop,), daemon=True)
         self._loop_thread.start()
-        
+    
+    def set_backend(self, backend):
+        """Change backend between 'cuda' and 'onnx'"""
+        if backend.lower() not in ['cuda', 'onnx']:
+            raise ValueError("Backend must be either 'cuda' or 'onnx'")
+        if backend.lower() != self.backend:
+            self.backend = backend.lower()
+            self._initialize_backend()
+    
     def set_voice(self, voice):
         self.current_voice = voice
     
@@ -63,6 +129,69 @@ class TTS_RVC:
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         return future.result()
     
+    async def _process_with_backend(self, input_path, pitch=0, output_filename=None, index_rate=0.75):
+        """Process the audio with the selected backend"""
+        if self.backend == 'onnx':
+            # Use ONNX backend for processing
+            sid = 0  # Speaker ID, not used in current implementation
+            
+            # Prepare output path
+            if output_filename is None:
+                name = date_to_short_hash()
+                if self.output_directory is None:
+                    output_directory = "temp"
+                    if not os.path.exists(output_directory):
+                        os.makedirs(output_directory)
+                else:
+                    output_directory = self.output_directory
+                output_filename = os.path.join(output_directory, name + ".wav")
+            else:
+                if self.output_directory is not None:
+                    output_filename = os.path.join(self.output_directory, output_filename)
+            
+            # Process using ONNX model
+            audio = self.onnx_model.inference(
+                input_path, 
+                sid, 
+                f0_method=self.f0_method, 
+                f0_up_key=pitch
+            )
+            
+            import soundfile
+            soundfile.write(output_filename, audio, self.sampling_rate)
+            return os.path.abspath(output_filename)
+            
+        else:
+            # Use CUDA backend for processing
+            from tts_with_rvc.infer import rvc_convert
+            
+            output_path = rvc_convert(
+                model_path=self.current_model,
+                input_path=input_path,
+                f0_up_key=pitch,
+                f0method=self.f0_method,
+                output_filename=output_filename,
+                output_dir_path=self.output_directory,
+                file_index=self.index_path,
+                index_rate=index_rate
+            )
+            
+            # If custom filename wasn't provided, rename with hash
+            if output_filename is None:
+                name = date_to_short_hash()
+                if self.output_directory is None:
+                    output_directory = "temp"
+                    if not os.path.exists(output_directory):
+                        os.makedirs(output_directory)
+                else:
+                    output_directory = self.output_directory
+                    
+                new_path = os.path.join(output_directory, name + ".wav")
+                os.rename(output_path, new_path)
+                output_path = new_path
+                
+            return os.path.abspath(output_path)
+    
     def __call__(self,
                  text,
                  pitch=0,
@@ -72,20 +201,14 @@ class TTS_RVC:
                  output_filename=None,
                  index_rate=0.75):
         
-        path = self._run_async(speech(
-            model_path=self.current_model,
-            input_directory=self.input_directory,
+        path = self._run_async(self._speech(
             text=text,
             pitch=pitch,
-            voice=self.current_voice,
             tts_add_rate=tts_rate,
             tts_add_volume=tts_volume,
             tts_add_pitch=tts_pitch,
-            output_directory=self.output_directory,
-            filename=output_filename,
-            index_path=self.index_path,
-            index_rate=index_rate,
-            f0_method=self.f0_method
+            output_filename=output_filename,
+            index_rate=index_rate
         ))
         
         return path
@@ -100,23 +223,49 @@ class TTS_RVC:
                     index_rate=0.75):
         """Асинхронный вариант метода __call__"""
         
-        path = await speech(
-            model_path=self.current_model,
-            input_directory=self.input_directory,
+        path = await self._speech(
             text=text,
             pitch=pitch,
-            voice=self.current_voice,
             tts_add_rate=tts_rate,
             tts_add_volume=tts_volume,
             tts_add_pitch=tts_pitch,
-            output_directory=self.output_directory,
-            filename=output_filename,
-            index_path=self.index_path,
-            index_rate=index_rate,
-            f0_method=self.f0_method
+            output_filename=output_filename,
+            index_rate=index_rate
         )
         
         return path
+
+    async def _speech(self,
+                text,
+                pitch=0,
+                tts_add_rate=0,
+                tts_add_volume=0,
+                tts_add_pitch=0,
+                output_filename=None,
+                index_rate=0.75):
+        
+        # Generate audio with edge-tts
+        input_path, file_name = await tts_communicate(
+            input_directory=self.input_directory,
+            text=text,
+            voice=self.current_voice,
+            tts_add_rate=tts_add_rate,
+            tts_add_volume=tts_add_volume,
+            tts_add_pitch=tts_add_pitch
+        )
+        
+        # Process with the selected backend
+        output_path = await self._process_with_backend(
+            input_path=input_path,
+            pitch=pitch,
+            output_filename=output_filename,
+            index_rate=index_rate
+        )
+        
+        # Delete temporary input file
+        os.remove(input_path)
+        
+        return output_path
 
     def convert_audio(self,
                      input_path,
@@ -138,32 +287,13 @@ class TTS_RVC:
         if not os.path.exists(input_path):
             raise FileNotFoundError(f"Входной аудиофайл не найден: {input_path}")
         
-        # Применяем RVC напрямую к существующему аудиофайлу
-        output_path = rvc_convert(
-            model_path=self.current_model,
+        # Процесс через соответствующий бэкенд
+        return self._run_async(self._process_with_backend(
             input_path=input_path,
-            f0_up_key=pitch,
-            f0method=self.f0_method,
+            pitch=pitch,
             output_filename=output_filename,
-            output_dir_path=self.output_directory,
-            file_index=self.index_path,
             index_rate=index_rate
-        )
-        
-        # Если имя файла не указано, генерируем новое имя
-        if output_filename is None:
-            name = date_to_short_hash()
-            if self.output_directory is None:
-                output_directory = "temp"
-                # Создаем директорию, если её нет
-                if not os.path.exists(output_directory):
-                    os.makedirs(output_directory)
-                
-            new_path = os.path.join(output_directory, name + ".wav")
-            os.rename(output_path, new_path)
-            output_path = new_path
-        
-        return os.path.abspath(output_path)
+        ))
 
     def process_args(self, text):
         rate_param, text = process_text(text, param="--tts-rate")
@@ -208,61 +338,6 @@ async def tts_communicate(input_directory,
     input_path = os.path.join(input_directory, file_name)
     await communicate.save(input_path)
     return input_path, file_name
-
-
-async def speech(model_path,
-                 input_directory,
-                 text,
-                 pitch=0,
-                 voice="ru-RU-DmitryNeural",
-                 tts_add_rate=0,
-                 tts_add_volume=0,
-                 tts_add_pitch=0,
-                 filename=None,
-                 output_directory=None,
-                 index_path="",
-                 index_rate=0.75,
-                 f0_method="rmvpe"):
-    
-    # Генерируем аудио с помощью edge-tts
-    input_path, file_name = await tts_communicate(
-        input_directory=input_directory,
-        text=text,
-        voice=voice,
-        tts_add_rate=tts_add_rate,
-        tts_add_volume=tts_add_volume,
-        tts_add_pitch=tts_add_pitch
-    )
-    
-    # Применяем RVC (это синхронная операция)
-    output_path = rvc_convert(
-        model_path=model_path,
-        input_path=input_path,
-        f0_up_key=pitch,
-        f0method=f0_method,
-        output_filename=filename,
-        output_dir_path=output_directory,
-        file_index=index_path,
-        index_rate=index_rate
-    )
-    
-    # Генерируем хеш для имени файла, если имя не указано
-    name = date_to_short_hash()
-    if filename is None:
-        if output_directory is None:
-            output_directory = "temp"
-            # Создаем директорию, если её нет
-            if not os.path.exists(output_directory):
-                os.makedirs(output_directory)
-                
-        new_path = os.path.join(output_directory, name + ".wav")
-        os.rename(output_path, new_path)
-        output_path = new_path
-
-    # Удаляем временный файл
-    os.remove(input_path)
-    
-    return os.path.abspath(output_path)
 
 
 def process_text(input_text, param, default_value=0):

@@ -3,7 +3,7 @@ from time import time as ttime
 import torch
 from torch import nn
 from torch.nn import functional as F
-from tts_with_rvc.lib.infer_pack import modules
+from tts_with_rvc.lib.infer_pack import torch_modules as modules
 from tts_with_rvc.lib.infer_pack import attentions
 from tts_with_rvc.lib.infer_pack import commons
 from tts_with_rvc.lib.infer_pack.commons import init_weights, get_padding

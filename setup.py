@@ -24,7 +24,7 @@ cuda_requirements = [
     "numpy==1.26.0",
     "librosa==0.9.1",
     "llvmlite==0.42.0",
-    "fairseq @ git+https://github.com/One-sixth/fairseq.git",
+    "fairseq @ https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp312-cp312-win_amd64.whl",
     "faiss-cpu==1.10.0",
     "Cython",
     "tensorboardX",

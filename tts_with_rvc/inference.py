@@ -3,10 +3,12 @@ import edge_tts as tts
 from edge_tts import VoicesManager
 import asyncio, concurrent.futures
 import gradio as gr
-from tts_with_rvc.infer import rvc_convert
+from tts_with_rvc.vc_infer import rvc_convert
 import hashlib
 from datetime import datetime
+import nest_asyncio
 
+nest_asyncio.apply()
 
 class TTS_RVC:
     def __init__(self, input_directory, model_path, voice="ru-RU-DmitryNeural", index_path="", f0_method="rmvpe", output_directory=None):
@@ -24,7 +26,8 @@ class TTS_RVC:
                 print("Index path:", index_path)
         self.index_path = index_path
 
-        os.environ['TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD'] = '1'
+        
+        # os.environ['TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD'] = '1'
 
     def set_voice(self, voice):
         self.current_voice = voice
@@ -68,7 +71,7 @@ class TTS_RVC:
                                      index_rate=index_rate)).result())
         return path
 
-    def speech(self, input_path, pitch=0, output_directory=None, filename=None, index_rate=0.75):
+    def voiceover_file(self, input_path, pitch=0, output_directory=None, filename=None, index_rate=0.75):
         global can_speak
         if not can_speak:
             print("Can't speak now")
@@ -81,6 +84,8 @@ class TTS_RVC:
                                   output_dir_path=output_directory,
                                   file_index=self.index_path,
                                   index_rate=index_rate)
+        
+        
         name = date_to_short_hash()
         if filename is None:
             if output_directory is None:

@@ -1,10 +1,22 @@
-import numpy as np, parselmouth, torch, pdb, sys, os
-from time import time as ttime
-import torch.nn.functional as F
-import scipy.signal as signal
-import pyworld, os, traceback, faiss, librosa, torchcrepe
-from scipy import signal
+import os
+import sys
+import traceback
+import logging
+
+logger = logging.getLogger(__name__)
+
 from functools import lru_cache
+from time import time as ttime
+
+import faiss
+import librosa
+import numpy as np
+import parselmouth
+import pyworld
+import torch
+import torch.nn.functional as F
+import torchcrepe
+from scipy import signal
 
 now_dir = os.getcwd()
 sys.path.append(now_dir)
@@ -49,9 +61,8 @@ def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出�
     ).numpy()
     return data2
 
-model_rmvpe_cached = None
 
-class VC(object):
+class Pipeline(object):
     def __init__(self, tgt_sr, config):
         self.x_pad, self.x_query, self.x_center, self.x_max, self.is_half = (
             config.x_pad,
@@ -69,6 +80,7 @@ class VC(object):
         self.t_center = self.sr * self.x_center  # 查询切点位置
         self.t_max = self.sr * self.x_max  # 免查询时长阈值
         self.device = config.device
+        self.model_rmvpe = None
 
     def get_f0(
         self,
@@ -129,21 +141,38 @@ class VC(object):
             f0[pd < 0.1] = 0
             f0 = f0[0].cpu().numpy()
         elif f0_method == "rmvpe":
-            if hasattr(self, "model_rmvpe") == False:
-                global model_rmvpe_cached
-                if model_rmvpe_cached is None:
-                    from tts_with_rvc.lib.rmvpe import RMVPE
+            if not self.model_rmvpe:
+                from tts_with_rvc.infer.lib.rmvpe import RMVPE
 
-                    print("loading rmvpe model")
-                    self.model_rmvpe = RMVPE(
-                        "rmvpe.pt", is_half=self.is_half, device=self.device
-                    )
-                    model_rmvpe_cached = self.model_rmvpe
-                else:
-                    print("using cached rvmpe model")
-                    self.model_rmvpe = model_rmvpe_cached
-                    
+                logger.info(
+                    "Loading rmvpe model"
+                )
+                self.model_rmvpe = RMVPE(
+                    "rmvpe.pt",
+                    is_half=self.is_half,
+                    device=self.device
+                )
             f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
+
+            if "privateuseone" in str(self.device):  # clean ortruntime memory
+                del self.model_rmvpe.model
+                del self.model_rmvpe
+                logger.info("Cleaning ortruntime memory")
+        elif f0_method == "dio":
+            from tts_with_rvc.infer.lib.infer_pack.f0_modules.F0Predictor.DioF0Predictor import DioF0Predictor
+            
+            dio_predictor = DioF0Predictor(
+                f0_min=f0_min,
+                f0_max=f0_max,
+                hop_length=512,
+                sampling_rate=self.sr
+            )
+            # Actually compute the F0 values using the predictor
+            f0 = dio_predictor.compute_f0(x, p_len)
+            
+            # Apply median filter if needed (similar to harvest method)
+            if filter_radius > 2:
+                f0 = signal.medfilt(f0, 3)
         f0 *= pow(2, f0_up_key / 12)
         # with open("test.txt","w")as f:f.write("\n".join([str(i)for i in f0.tolist()]))
         tf0 = self.sr // self.window  # 每秒f0点数
@@ -204,11 +233,11 @@ class VC(object):
         with torch.no_grad():
             logits = model.extract_features(**inputs)
             feats = model.final_proj(logits[0]) if version == "v1" else logits[0]
-        if protect < 0.5 and pitch != None and pitchf != None:
+        if protect < 0.5 and pitch is not None and pitchf is not None:
             feats0 = feats.clone()
         if (
-            isinstance(index, type(None)) == False
-            and isinstance(big_npy, type(None)) == False
+            not isinstance(index, type(None))
+            and not isinstance(big_npy, type(None))
             and index_rate != 0
         ):
             npy = feats[0].cpu().numpy()
@@ -231,7 +260,7 @@ class VC(object):
             )
 
         feats = F.interpolate(feats.permute(0, 2, 1), scale_factor=2).permute(0, 2, 1)
-        if protect < 0.5 and pitch != None and pitchf != None:
+        if protect < 0.5 and pitch is not None and pitchf is not None:
             feats0 = F.interpolate(feats0.permute(0, 2, 1), scale_factor=2).permute(
                 0, 2, 1
             )
@@ -239,11 +268,11 @@ class VC(object):
         p_len = audio0.shape[0] // self.window
         if feats.shape[1] < p_len:
             p_len = feats.shape[1]
-            if pitch != None and pitchf != None:
+            if pitch is not None and pitchf is not None:
                 pitch = pitch[:, :p_len]
                 pitchf = pitchf[:, :p_len]
 
-        if protect < 0.5 and pitch != None and pitchf != None:
+        if protect < 0.5 and pitch is not None and pitchf is not None:
             pitchff = pitchf.clone()
             pitchff[pitchf > 0] = 1
             pitchff[pitchf < 1] = protect
@@ -252,17 +281,10 @@ class VC(object):
             feats = feats.to(feats0.dtype)
         p_len = torch.tensor([p_len], device=self.device).long()
         with torch.no_grad():
-            if pitch != None and pitchf != None:
-                audio1 = (
-                    (net_g.infer(feats, p_len, pitch, pitchf, sid)[0][0, 0])
-                    .data.cpu()
-                    .float()
-                    .numpy()
-                )
-            else:
-                audio1 = (
-                    (net_g.infer(feats, p_len, sid)[0][0, 0]).data.cpu().float().numpy()
-                )
+            hasp = pitch is not None and pitchf is not None
+            arg = (feats, p_len, pitch, pitchf, sid) if hasp else (feats, p_len, sid)
+            audio1 = (net_g.infer(*arg)[0][0, 0]).data.cpu().float().numpy()
+            del hasp, arg
         del feats, p_len, padding_mask
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -282,7 +304,6 @@ class VC(object):
         f0_up_key,
         f0_method,
         file_index,
-        # file_big_npy,
         index_rate,
         if_f0,
         filter_radius,
@@ -297,7 +318,7 @@ class VC(object):
             file_index != ""
             # and file_big_npy != ""
             # and os.path.exists(file_big_npy) == True
-            and os.path.exists(file_index) == True
+            and os.path.exists(file_index)
             and index_rate != 0
         ):
             try:
@@ -321,8 +342,8 @@ class VC(object):
                     t
                     - self.t_query
                     + np.where(
-                        np.abs(audio_sum[t - self.t_query : t + self.t_query])
-                        == np.abs(audio_sum[t - self.t_query : t + self.t_query]).min()
+                        np.sum(audio_sum[t - self.t_query : t + self.t_query])
+                        == np.sum(audio_sum[t - self.t_query : t + self.t_query]).min()
                     )[0][0]
                 )
         s = 0
@@ -332,7 +353,7 @@ class VC(object):
         audio_pad = np.pad(audio, (self.t_pad, self.t_pad), mode="reflect")
         p_len = audio_pad.shape[0] // self.window
         inp_f0 = None
-        if hasattr(f0_file, "name") == True:
+        if hasattr(f0_file, "name"):
             try:
                 with open(f0_file.name, "r") as f:
                     lines = f.read().strip("\n").split("\n")
@@ -356,7 +377,7 @@ class VC(object):
             )
             pitch = pitch[:p_len]
             pitchf = pitchf[:p_len]
-            if self.device == "mps":
+            if "mps" not in str(self.device) or "xpu" not in str(self.device):
                 pitchf = pitchf.astype(np.float32)
             pitch = torch.tensor(pitch, device=self.device).unsqueeze(0).long()
             pitchf = torch.tensor(pitchf, device=self.device).unsqueeze(0).float()
@@ -436,7 +457,7 @@ class VC(object):
         audio_opt = np.concatenate(audio_opt)
         if rms_mix_rate != 1:
             audio_opt = change_rms(audio, 16000, audio_opt, tgt_sr, rms_mix_rate)
-        if resample_sr >= 16000 and tgt_sr != resample_sr:
+        if tgt_sr != resample_sr >= 16000:
             audio_opt = librosa.resample(
                 audio_opt, orig_sr=tgt_sr, target_sr=resample_sr
             )

@@ -1,4 +1,4 @@
-# **TTS-with-RVC** 0.1.5
+# **TTS-with-RVC** 0.1.6 dev
 
 <hr/>
 
@@ -14,9 +14,11 @@ Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 
 ## Release notes
 
-**0.1.5** - December 21, 2025: Removed all unnecessary packages, **Removed** `rvc_path`, Added `f0_method` for more control and 
+**0.1.6** - March 25, 2025: Updated all files with latest RVC commit - 1.5-2x times faster inference. ONNX support.
 
-**0.1.4** - November 22, 2024: Added `index_path` and `index_rate` parameters for more control over index-based voice conversion
+**0.1.5** - February 21, 2025: Removed all unnecessary packages, **Removed** `rvc_path`, Added `f0_method` for more control.
+
+**0.1.4** - November 22, 2024: Added `index_path` and `index_rate` parameters for more control over index-based voice conversion.
 
 **0.1.3** - fixed a lot problems, some optimization. 
 

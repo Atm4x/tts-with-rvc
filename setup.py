@@ -4,7 +4,7 @@ import sys
 # Базовые зависимости
 install_requires = [
     "huggingface_hub",
-    "nest_asyncio"
+    "nest_asyncio",
     "torch",
     "torchaudio",
     "edge-tts",

@@ -1,1 +1,1 @@
-from .inference import *
+from .inference_onnx import *

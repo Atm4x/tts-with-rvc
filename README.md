@@ -1,10 +1,4 @@
-# **TTS-with-RVC** 0.1.6 dev
-
-<hr/>
-
-### <span style="color:red">A lot of unnecessary installations have been removed in this version. If you encounter any errors, report them to Issues and use [version 0.1.4](https://github.com/Atm4x/tts-with-rvc/tree/0.1.4) </span>
-
-<hr/>
+# **TTS-with-RVC** 0.1.6
 
 ***TTS-with-RVC** (Text-to-Speech with RVC)* is a package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing a *RVC* module. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support.
 
@@ -33,25 +27,27 @@ You must have **CUDA or MPS** support for your GPU (mps is not tested yet).
 
 2) Then, install TTS-with-RVC using pip install:
 ```
-python -m pip install git+https://github.com/Atm4x/tts-with-rvc.git#egg=tts_with_rvc
+pip install git+https://github.com/Atm4x/tts-with-rvc.git#egg=tts_with_rvc
 ```
 3) And finally, install [ffmpeg](https://ffmpeg.org/download.html) if you don't already have one, and add it to the folder with your script **or better yet** add ffmpeg to the `Environment variables` in `Path`. 
 
 ## How it Works
-1. **Text-to-Speech (TTS):** Users enter text into the TTS module, which then processes it and generates the corresponding speech as a file saved in the entered input directory
+1. **Text-to-Speech (TTS):** Users enter text into the TTS module, which then processes it and generates the corresponding speech as a file saved in the temp directory
 2. **RVC:** With .pth file provided, RVC module reads the generated audio file, processes it and generates an new audio saved in *output_directory* with voice replaced.
 
 ## Usage
 
 TTS-with-RVC has a class called `TTS_RVC`. There are a few parameters that are required:
 
-`input_directory` - path to your input directory (Temp directory for saving TTS output)
-
 `model_path` - path to your .pth model
 
 And optional parameters:
 
 `voice` - voice from edge-tts list *(default is "ru-RU-DmitryNeural")*
+
+
+`tmp_directory` - path to TTS input directory (Temp directory for saving TTS output, default is Temp folder)
+
 
 `output_directory` - directory for saving voiced audio (`temp/` is default).
 
@@ -60,6 +56,10 @@ And optional parameters:
 `index_rate` - blending rate between original and indexed voice conversion (default is `0.75`).
 
 `f0_method` - method for calculating the pitch of the audio (default is `rmvpe`).
+
+Deprecated:
+
+`input_directory` - path to TTS input directory (Temp directory for saving TTS output, default is None)
 
 
 
@@ -104,7 +104,7 @@ Parameters:
 
 `tts_pitch` - extra pitch of TTS-generated audio (optional, neg. values are compatible, <b>not recommended</b>, default is 0)
 
-`output_filename` - specified path for voiced audio (optional, default is `None`)
+`output_filename` - name for the output file (optional, default is `None`)
 
 ## Example of usage
 A simple example for voicing text:
@@ -114,12 +114,14 @@ from tts_with_rvc import TTS_RVC
 from playsound import playsound
 
 tts = TTS_RVC(
-    model_path="models\\DenVot.pth", 
-    input_directory="input\\",
+    model_path="models\\DenVot13800.pth",
     index_path="logs\\added_IVF1749_Flat_nprobe_1.index"
 )
+
 tts.set_voice("ru-RU-DmitryNeural")
 path = tts(text="Привет, мир!", pitch=6, index_rate=0.9)
+
+normalized_path = path.replace("\\\\", "/").replace("\\","/")
 
 playsound(path)
 ```
@@ -142,7 +144,7 @@ Now the principle of work:
 ```python
 from tts_with_rvc import TTS_RVC
 
-tts = TTS_RVC(rvc_path="src\\rvclib", model_path="models\\YourModel.pth", input_directory="input\\")
+tts = TTS_RVC(model_path="models\\YourModel.pth")
 
 # This method returns arguments and original text without these text parameters
 args, message = tts.process_args(message)
@@ -170,6 +172,8 @@ path = tts(message, tts_rate=args[0],
 
 `set_index_path(index_path)` - updates the path to the index file for voice model adjustments. 
 
+`voiceover_file(path)` - voiceovers the file at the specified path without TTS.
+
 
 ## Exceptions
 1) NameError:
@@ -187,5 +191,6 @@ No license
 
 ## Authors
 [Atm4x](https://github.com/Atm4x) (Artem Dikarev)
+
 
 

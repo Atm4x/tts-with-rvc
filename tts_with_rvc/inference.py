@@ -85,7 +85,7 @@ class TTS_RVC:
 
         Args:
             text (str): The text to synthesize.
-            rvc_pitch (int, optional): Pitch change (transpose) for RVC in semitones. Defaults to 0.
+            pitch (int, optional): Pitch change (transpose) for RVC in semitones. Defaults to 0.
             tts_rate (int, optional): Speed adjustment for Edge TTS in percentage (+-). Defaults to 0.
             tts_volume (int, optional): Volume adjustment for Edge TTS in percentage (+-). Defaults to 0.
             tts_pitch (int, optional): Pitch adjustment for Edge TTS in Hz (+-). Defaults to 0.

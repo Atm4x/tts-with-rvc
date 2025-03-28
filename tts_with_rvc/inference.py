@@ -143,7 +143,6 @@ class TTS_RVC:
             output_directory = self.output_directory
 
         name = (date_to_short_hash() + ".wav") if filename is None else filename
-
         output_path = rvc_convert(model_path=self.current_model,
                                   input_path=input_path,
                                   f0_up_key=pitch,

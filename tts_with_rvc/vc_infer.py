@@ -80,12 +80,15 @@ def rvc_convert(model_path,
     print("output_filename: ", output_filename)
 
     if output_dir_path == None:
+        output_dir_path = "temp"
+        if not os.path.exists('temp'):
+            os.mkdir('temp')
         if output_filename != None:
-            output_file_path = os.path.abspath(output_filename)
+
+            output_file_path = os.path.join(output_dir_path, output_filename)
         else:
             if not os.path.exists('temp'):
                 os.mkdir('temp')
-            output_dir_path = "temp"
             output_file_name = "out.wav"
             output_dir = os.getcwd()
             output_file_path = os.path.join(output_dir,output_dir_path, output_file_name)

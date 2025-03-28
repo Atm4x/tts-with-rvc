@@ -24,10 +24,11 @@ class TTS_RVC:
         model_path (str): Path to the RVC .pth model file.
         voice (str): Edge TTS voice identifier (e.g., "ru-RU-DmitryNeural").
         index_path (str, optional): Path to the RVC .index file. Defaults to "".
+        output_directory (str, optional): Directory to save voiceovered audios. Defaults to 'temp'.
         f0_method (str, optional): F0 extraction method for RVC ('rmvpe', 'pm', 'harvest', 'dio', 'crepe'). Defaults to "rmvpe".
         tmp_directory (str, optional): Directory for temporary TTS files. Default is Temp
     """
-    def __init__(self, model_path, tmp_directory=None, voice="ru-RU-DmitryNeural", index_path="", f0_method="rmvpe",  output_directory=None, input_directory=None):
+    def __init__(self, model_path, tmp_directory=None, voice="ru-RU-DmitryNeural", index_path="", f0_method="rmvpe", output_directory=None, input_directory=None):
         if input_directory is not None:
             warnings.warn("Parameter 'input_directory' is deprecated and will be deleted in the future"
                         "Use tmp_directory instead of it", DeprecationWarning, stacklevel=2)
@@ -122,6 +123,7 @@ class TTS_RVC:
             input_path (str): Path to the input audio file (WAV recommended).
             pitch (int, optional): Pitch change (transpose) for RVC in semitones. Defaults to 0.
             index_rate (float, optional): Contribution of the RVC index file (0 to 1). Defaults to 0.75.
+            output_directory (str, optional): Directory to save voiceovered audios. Defaults to TTS_RVC's output directory.
             filename (str, optional): Name for the output file. If None, derived from input name + hash. Defaults to None.
 
         Returns:
@@ -137,6 +139,9 @@ class TTS_RVC:
             print("Can't speak now")
             return
         
+        if output_directory is None:
+            output_directory = self.output_directory
+
         name = (date_to_short_hash() + ".wav") if filename is None else filename
 
         output_path = rvc_convert(model_path=self.current_model,

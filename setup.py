@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 import sys
+import platform
 
-# Базовые зависимости
 install_requires = [
     "huggingface_hub",
     "nest_asyncio",
@@ -54,17 +54,25 @@ install_requires = [
     "ffmpy==0.3.1"
 ]
 
-# Определяем версию Python и добавляем нужный пакет fairseq
 python_version = f"{sys.version_info.major}{sys.version_info.minor}"
+system = platform.system()
 
-fairseq_links = {
+windows_fairseq_links = {
     "312": "https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp312-cp312-win_amd64.whl",
     "311": "https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp311-cp311-win_amd64.whl",
     "310": "https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp310-cp310-win_amd64.whl",
 }
 
-if python_version in fairseq_links:
-    install_requires.append(f"fairseq @ {fairseq_links[python_version]}")
+linux_fairseq_links = {
+    "312": "https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp312-cp312-linux_x86_64.whl",
+    "311": "https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp311-cp311-linux_x86_64.whl",
+    "310": "https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp310-cp310-linux_x86_64.whl",
+}
+
+if system == "Windows" and python_version in windows_fairseq_links:
+    install_requires.append(f"fairseq @ {windows_fairseq_links[python_version]}")
+elif system == "Linux" and python_version in linux_fairseq_links:
+    install_requires.append(f"fairseq @ {linux_fairseq_links[python_version]}")
 else:
     install_requires.append("fairseq @ git+https://github.com/One-sixth/fairseq.git")
 

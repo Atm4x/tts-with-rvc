@@ -46,7 +46,7 @@ class TTS_RVC:
             if not os.path.exists(index_path):
                 logger.info("Index path not found, skipping...")
             else:
-                logger.info("Index path:", index_path)
+                logger.info("Index path: " + index_path)
         self.index_path = index_path
 
         

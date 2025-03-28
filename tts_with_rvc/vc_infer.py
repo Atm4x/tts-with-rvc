@@ -76,8 +76,6 @@ def rvc_convert(model_path,
         logging.getLogger('rvc').setLevel(logging.ERROR)
 
     is_half = _is_half
-    print("output_dir_path: ", output_dir_path)
-    print("output_filename: ", output_filename)
 
     if output_dir_path == None:
         output_dir_path = "temp"
@@ -117,7 +115,7 @@ def rvc_convert(model_path,
     wavfile.write(output_file_path, tgt_sr, opt_wav)
     logger.info(f"Saved: {output_file_path}")
 
-    return output_file_path
+    return os.path.abspath(output_file_path)
 
 
 def main():

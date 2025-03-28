@@ -7,6 +7,10 @@ import hashlib
 from datetime import datetime
 import nest_asyncio
 import tempfile
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 nest_asyncio.apply()
 
@@ -21,9 +25,9 @@ class TTS_RVC:
         self.f0_method = f0_method
         if(index_path != ""):
             if not os.path.exists(index_path):
-                print("Index path not found, skipping...")
+                logger.info("Index path not found, skipping...")
             else:
-                print("Index path:", index_path)
+                logger.info("Index path:", index_path)
         self.index_path = index_path
 
         

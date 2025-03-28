@@ -6,11 +6,12 @@ from tts_with_rvc.vc_infer import rvc_convert
 import hashlib
 from datetime import datetime
 import nest_asyncio
+import tempfile
 
 nest_asyncio.apply()
 
 class TTS_RVC:
-    def __init__(self, input_directory, model_path, voice="ru-RU-DmitryNeural", index_path="", f0_method="rmvpe", output_directory=None):
+    def __init__(self, model_path, input_directory=None, voice="ru-RU-DmitryNeural", index_path="", f0_method="rmvpe", output_directory=None):
         self.pool = concurrent.futures.ThreadPoolExecutor()
         self.current_voice = voice
         self.input_directory = input_directory
@@ -118,26 +119,34 @@ async def get_voices():
 
 can_speak = True
 
-async def tts_comminicate(input_directory,
-                 text,
-                 voice="ru-RU-DmitryNeural",
-                 tts_add_rate=0,
-                 tts_add_volume=0,
-                 tts_add_pitch=0):
-    communicate = tts.Communicate(text=text,
-                                  voice=voice,
-                                  rate=f'{"+" if tts_add_rate >= 0 else ""}{tts_add_rate}%',
-                                  volume=f'{"+" if tts_add_volume >= 0 else ""}{tts_add_volume}%',
-                                  pitch=f'{"+" if tts_add_pitch >= 0 else ""}{tts_add_pitch}Hz')
+async def tts_comminicate(text,
+                          input_directory=None,
+                          voice="ru-RU-DmitryNeural",
+                          tts_add_rate=0,
+                          tts_add_volume=0,
+                          tts_add_pitch=0):
+    if not input_directory:
+        temp_dir = os.path.join(tempfile.gettempdir(), "tts_with_rvc")
+        os.makedirs(temp_dir, exist_ok=True)
+        input_directory = temp_dir
+
+    communicate = tts.Communicate(
+        text=text,
+        voice=voice,
+        rate=f'{"+" if tts_add_rate >= 0 else ""}{tts_add_rate}%',
+        volume=f'{"+" if tts_add_volume >= 0 else ""}{tts_add_volume}%',
+        pitch=f'{"+" if tts_add_pitch >= 0 else ""}{tts_add_pitch}Hz'
+    )
+
     file_name = date_to_short_hash()
     input_path = os.path.join(input_directory, file_name)
     await communicate.save(input_path)
     return input_path, file_name
 
 async def speech(model_path,
-                 input_directory,
                  text,
                  pitch=0,
+                 input_directory = None,
                  voice="ru-RU-DmitryNeural",
                  tts_add_rate=0,
                  tts_add_volume=0,
@@ -149,7 +158,7 @@ async def speech(model_path,
                  f0_method="rmvpe"):
     global can_speak
     
-    if not os.path.exists(input_directory):
+    if input_directory and not os.path.exists(input_directory):
         os.makedirs(input_directory)
 
     input_path, file_name = await tts_comminicate(input_directory=input_directory,

@@ -14,7 +14,7 @@ Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 
 ## Release notes
 
-**0.1.6** - March 25, 2025: Updated all files with latest RVC commit - 1.5-2x times faster inference. ONNX support.
+**0.1.6** - March 28, 2025: Updated all files with the latest RVC commit - 1.5-2x times faster inference. Reduced required packages. ONNX support [here](https://github.com/Atm4x/tts-with-rvc/tree/0.1.6-onnx).
 
 **0.1.5** - February 21, 2025: Removed all unnecessary packages, **Removed** `rvc_path`, Added `f0_method` for more control.
 
@@ -68,8 +68,7 @@ To set the voice, firstly, make instance of TTS_RVC:
 ```python
 from tts_with_rvc import TTS_RVC
 
-tts = TTS_RVC(model_path="models\\YourModel.pth", 
-                input_directory="input\\", 
+tts = TTS_RVC(model_path="models\\YourModel.pth",
                 index_path="logs\\YourIndex.index",
                 f0_method="rmvpe")
 ```

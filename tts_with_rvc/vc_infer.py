@@ -17,7 +17,6 @@ config = Config()
 vc = VC(config)
 last_model_path = ""
 
-import time
 torch.serialization.safe_globals([Dictionary])
 torch.serialization.add_safe_globals([Dictionary])
 

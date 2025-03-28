@@ -113,9 +113,10 @@ def rvc_convert(model_path,
     tgt_sr, opt_wav =vc.vc_single(0,input_path,f0_up_key,None,f0method,file_index,file_index2,index_rate,filter_radius,resample_sr,rms_mix_rate,protect)
 
     wavfile.write(output_file_path, tgt_sr, opt_wav)
-    logger.info(f"Saved: {output_file_path}")
+    saved_to = os.path.abspath(output_file_path)
+    logger.info(f"Saved: {saved_to}")
 
-    return os.path.abspath(output_file_path)
+    return saved_to
 
 
 def main():

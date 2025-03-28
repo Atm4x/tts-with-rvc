@@ -70,6 +70,7 @@ def rvc_convert(model_path,
         print("Cuda or MPS not detected, but they are required")
 
     if not verbose:
+        logging.getLogger('torch').setLevel(logging.ERROR)
         logging.getLogger('fairseq').setLevel(logging.ERROR)
         logging.getLogger('rvc').setLevel(logging.ERROR)
 

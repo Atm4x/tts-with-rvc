@@ -1,8 +1,8 @@
-# **TTS-with-RVC** 0.1.5
+# **TTS-with-RVC** 0.1.6 ONNX
 
 <hr/>
 
-### <span style="color:red">A lot of unnecessary installations have been removed in this version. If you encounter any errors, report them to Issues and use [version 0.1.4](https://github.com/Atm4x/tts-with-rvc/tree/0.1.4) </span>
+### <span style="color:red">Currently there are differences between Torch and Onnx version, soon I'll fix it</span>
 
 <hr/>
 
@@ -14,26 +14,19 @@ Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 
 ## Release notes
 
-**0.1.5** - December 21, 2025: Removed all unnecessary packages, **Removed** `rvc_path`, Added `f0_method` for more control and 
-
-**0.1.4** - November 22, 2024: Added `index_path` and `index_rate` parameters for more control over index-based voice conversion
-
-**0.1.3** - fixed a lot problems, some optimization. 
+**0.1.6.onnx** - Added onnx support.
 
 ## Prerequisites
 
 You must have **Python<=3.12** installed (3.12 is recommended, mostly tested on 3.10).
 
-You must have **CUDA or MPS** support for your GPU (mps is not tested yet).
-
 ## **Installation**
-1) Install pytorch **with CUDA or MPS support** here: https://pytorch.org/get-started/locally/
 
-2) Then, install TTS-with-RVC using pip install:
+1) Then, install TTS-with-RVC using pip install:
 ```
-python -m pip install git+https://github.com/Atm4x/tts-with-rvc.git#egg=tts_with_rvc
+python -m pip install git+https://github.com/Atm4x/tts-with-rvc.git@0.1.6-onnx#egg=tts_with_rvc
 ```
-3) And finally, install [ffmpeg](https://ffmpeg.org/download.html) if you don't already have one, and add it to the folder with your script **or better yet** add ffmpeg to the `Environment variables` in `Path`. 
+2) Then install [ffmpeg](https://ffmpeg.org/download.html) if you don't already have one, and add it to the folder with your script **or better yet** add ffmpeg to the `Environment variables` in `Path`. 
 
 ## How it Works
 1. **Text-to-Speech (TTS):** Users enter text into the TTS module, which then processes it and generates the corresponding speech as a file saved in the entered input directory
@@ -45,11 +38,13 @@ TTS-with-RVC has a class called `TTS_RVC`. There are a few parameters that are r
 
 `input_directory` - path to your input directory (Temp directory for saving TTS output)
 
-`model_path` - path to your .pth model
+`model_path` - path to your .onnx model
 
 And optional parameters:
 
 `voice` - voice from edge-tts list *(default is "ru-RU-DmitryNeural")*
+
+`device` - device to work with (CUDA, CPU or DML, default is `dml`)
 
 `output_directory` - directory for saving voiced audio (`temp/` is default).
 
@@ -57,7 +52,7 @@ And optional parameters:
 
 `index_rate` - blending rate between original and indexed voice conversion (default is `0.75`).
 
-`f0_method` - method for calculating the pitch of the audio (default is `rmvpe`).
+`f0_method` - method for calculating the pitch of the audio (default is `dio`).
 
 
 
@@ -66,10 +61,11 @@ To set the voice, firstly, make instance of TTS_RVC:
 ```python
 from tts_with_rvc import TTS_RVC
 
-tts = TTS_RVC(model_path="models\\YourModel.pth", 
+tts = TTS_RVC(model_path="models\\YourModel.onnx",
+                device="dml", 
                 input_directory="input\\", 
                 index_path="logs\\YourIndex.index",
-                f0_method="rmvpe")
+                f0_method="dio")
 ```
 
 
@@ -113,7 +109,8 @@ from tts_with_rvc import TTS_RVC
 from playsound import playsound
 
 tts = TTS_RVC(
-    model_path="models\\DenVot.pth", 
+    model_path="models\\DenVot.onnx",
+    device="dml", 
     input_directory="input\\",
     index_path="logs\\added_IVF1749_Flat_nprobe_1.index"
 )
@@ -141,7 +138,10 @@ Now the principle of work:
 ```python
 from tts_with_rvc import TTS_RVC
 
-tts = TTS_RVC(rvc_path="src\\rvclib", model_path="models\\YourModel.pth", input_directory="input\\")
+tts = TTS_RVC(
+    device="dml",
+    model_path="models\\YourModel.pth",
+    input_directory="input\\")
 
 # This method returns arguments and original text without these text parameters
 args, message = tts.process_args(message)
@@ -171,15 +171,8 @@ path = tts(message, tts_rate=args[0],
 
 
 ## Exceptions
-1) NameError:
-```NameError: name 'device' is not defined```
 
-Be sure your device supports CUDA and you installed right version of Torch.
-
-2) RuntimeError:
-```RuntimeError: Failed to load audio: {e}```
-
-Be sure you installed `ffmpeg`.
+Nothing found yet.
 
 ## License
 No license

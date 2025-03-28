@@ -20,7 +20,7 @@ install_requires = [
     "audioread",  
     "pyworld==0.3.2",
     "torchcrepe==0.0.20",
-    "numba==0.59.0"
+    "numba==0.60.0"
 ]
 
 python_version = f"{sys.version_info.major}{sys.version_info.minor}"

@@ -76,6 +76,8 @@ def rvc_convert(model_path,
         logging.getLogger('rvc').setLevel(logging.ERROR)
 
     is_half = _is_half
+    print("output_dir_path: ", output_dir_path)
+    print("output_filename: ", output_filename)
 
     if output_dir_path == None:
         if output_filename != None:

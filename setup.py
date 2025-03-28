@@ -4,7 +4,7 @@ import platform
 
 install_requires = [
     "huggingface_hub",
-    "av"
+    "av",
     "nest_asyncio",
     "torch",
     "torchaudio",

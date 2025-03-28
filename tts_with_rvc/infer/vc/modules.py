@@ -108,7 +108,6 @@ class VC:
         )
         hubert_model = models[0]
         hubert_model = hubert_model.to(config.device)
-        print(config.device)
         if config.is_half:
             hubert_model = hubert_model.half()
         else:

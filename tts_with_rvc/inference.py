@@ -8,17 +8,35 @@ from datetime import datetime
 import nest_asyncio
 import tempfile
 import logging
+import warnings
 
 logger = logging.getLogger(__name__)
 
+logging.getLogger('torch').setLevel(logging.ERROR)
 
 nest_asyncio.apply()
 
 class TTS_RVC:
-    def __init__(self, model_path, input_directory=None, voice="ru-RU-DmitryNeural", index_path="", f0_method="rmvpe", output_directory=None):
+    """
+    Combines Edge TTS for text-to-speech with RVC for voice conversion.
+
+    Args:
+        model_path (str): Path to the RVC .pth model file.
+        voice (str): Edge TTS voice identifier (e.g., "ru-RU-DmitryNeural").
+        index_path (str, optional): Path to the RVC .index file. Defaults to "".
+        f0_method (str, optional): F0 extraction method for RVC ('rmvpe', 'pm', 'harvest', 'dio', 'crepe'). Defaults to "rmvpe".
+        tmp_directory (str, optional): Directory for temporary TTS files. Default is Temp
+    """
+    def __init__(self, model_path, tmp_directory=None, voice="ru-RU-DmitryNeural", index_path="", f0_method="rmvpe",  output_directory=None, input_directory=None):
+        if input_directory is not None:
+            warnings.warn("Parameter 'input_directory' is deprecated and will be deleted in the future"
+                        "Use tmp_directory instead of it", DeprecationWarning, stacklevel=2)
+            if tmp_directory is None: 
+                self.tmp_directory = input_directory
+        else:
+            self.tmp_directory = tmp_directory
         self.pool = concurrent.futures.ThreadPoolExecutor()
         self.current_voice = voice
-        self.input_directory = input_directory
         self.can_speak = True
         self.current_model = model_path
         self.output_directory = output_directory
@@ -59,10 +77,31 @@ class TTS_RVC:
                  tts_volume=0,
                  tts_pitch=0,
                  output_filename=None,
-                 index_rate=0.75):
+                 index_rate=0.75) -> str:
+        
+        """
+        Generates speech from text using Edge TTS and converts it using RVC.
+
+        Args:
+            text (str): The text to synthesize.
+            rvc_pitch (int, optional): Pitch change (transpose) for RVC in semitones. Defaults to 0.
+            tts_rate (int, optional): Speed adjustment for Edge TTS in percentage (+-). Defaults to 0.
+            tts_volume (int, optional): Volume adjustment for Edge TTS in percentage (+-). Defaults to 0.
+            tts_pitch (int, optional): Pitch adjustment for Edge TTS in Hz (+-). Defaults to 0.
+            index_rate (float, optional): Contribution of the RVC index file (0 to 1). Defaults to 0.75.
+            output_filename (str, optional): Name for the output file. If None, a unique name is generated. Defaults to None.
+
+        Returns:
+            str: The absolute path to the generated audio file.
+
+        Raises:
+            RuntimeError: If TTS or RVC process fails.
+            ValueError: If parameters are invalid.
+        """
+
         path = (self.pool.submit
                 (asyncio.run, speech(model_path=self.current_model,
-                                     input_directory=self.input_directory,
+                                     tmp_directory=self.tmp_directory,
                                      text=text,
                                      pitch=pitch,
                                      voice=self.current_voice,
@@ -76,6 +115,23 @@ class TTS_RVC:
         return path
 
     def voiceover_file(self, input_path, pitch=0, output_directory=None, filename=None, index_rate=0.75):
+        """
+        Applies RVC voice conversion directly to an existing audio file.
+
+        Args:
+            input_path (str): Path to the input audio file (WAV recommended).
+            pitch (int, optional): Pitch change (transpose) for RVC in semitones. Defaults to 0.
+            index_rate (float, optional): Contribution of the RVC index file (0 to 1). Defaults to 0.75.
+            filename (str, optional): Name for the output file. If None, derived from input name + hash. Defaults to None.
+
+        Returns:
+            str: The absolute path to the converted audio file.
+
+        Raises:
+            FileNotFoundError: If the input file doesn't exist.
+            RuntimeError: If RVC process fails.
+            ValueError: If parameters are invalid.
+        """
         global can_speak
         if not can_speak:
             print("Can't speak now")
@@ -124,15 +180,15 @@ async def get_voices():
 can_speak = True
 
 async def tts_comminicate(text,
-                          input_directory=None,
+                          tmp_directory=None,
                           voice="ru-RU-DmitryNeural",
                           tts_add_rate=0,
                           tts_add_volume=0,
                           tts_add_pitch=0):
-    if not input_directory:
+    if not tmp_directory:
         temp_dir = os.path.join(tempfile.gettempdir(), "tts_with_rvc")
         os.makedirs(temp_dir, exist_ok=True)
-        input_directory = temp_dir
+        tmp_directory = temp_dir
 
     communicate = tts.Communicate(
         text=text,
@@ -143,14 +199,14 @@ async def tts_comminicate(text,
     )
 
     file_name = date_to_short_hash()
-    input_path = os.path.join(input_directory, file_name)
+    input_path = os.path.join(tmp_directory, file_name)
     await communicate.save(input_path)
     return input_path, file_name
 
 async def speech(model_path,
                  text,
                  pitch=0,
-                 input_directory = None,
+                 tmp_directory = None,
                  voice="ru-RU-DmitryNeural",
                  tts_add_rate=0,
                  tts_add_volume=0,
@@ -162,10 +218,10 @@ async def speech(model_path,
                  f0_method="rmvpe"):
     global can_speak
     
-    if input_directory and not os.path.exists(input_directory):
-        os.makedirs(input_directory)
+    if tmp_directory and not os.path.exists(tmp_directory):
+        os.makedirs(tmp_directory)
 
-    input_path, file_name = await tts_comminicate(input_directory=input_directory,
+    input_path, file_name = await tts_comminicate(tmp_directory=tmp_directory,
               text=text,
               voice=voice,
               tts_add_rate=tts_add_rate,

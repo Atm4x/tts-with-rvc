@@ -12,6 +12,8 @@ from tts_with_rvc.infer.vc.config import Config
 
 from fairseq.data.dictionary import Dictionary
 
+logger = logging.getLogger(__name__)
+
 
 config = Config()
 vc = VC(config)
@@ -70,7 +72,6 @@ def rvc_convert(model_path,
         print("Cuda or MPS not detected, but they are required")
 
     if not verbose:
-        logging.getLogger('torch').setLevel(logging.ERROR)
         logging.getLogger('fairseq').setLevel(logging.ERROR)
         logging.getLogger('rvc').setLevel(logging.ERROR)
 
@@ -111,13 +112,12 @@ def rvc_convert(model_path,
     tgt_sr, opt_wav =vc.vc_single(0,input_path,f0_up_key,None,f0method,file_index,file_index2,index_rate,filter_radius,resample_sr,rms_mix_rate,protect)
 
     wavfile.write(output_file_path, tgt_sr, opt_wav)
-    print(f"\nFile finished writing to: {output_file_path}")
+    logger.info(f"\nFile finished writing to: {output_file_path}")
 
     return output_file_path
 
 
 def main():
-    # Need to comment out yaml setting for input audio
     rvc_convert(model_path="models\\DenVot.pth", input_path="out.wav")
 
 if __name__ == "__main__":

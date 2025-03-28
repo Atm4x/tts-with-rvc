@@ -136,24 +136,19 @@ class TTS_RVC:
         if not can_speak:
             print("Can't speak now")
             return
+        
+        name = (date_to_short_hash() + ".wav") if filename is None else filename
+
         output_path = rvc_convert(model_path=self.current_model,
                                   input_path=input_path,
                                   f0_up_key=pitch,
                                   f0method=self.f0_method,
-                                  output_filename=filename,
+                                  output_filename=name,
                                   output_dir_path=output_directory,
                                   file_index=self.index_path,
                                   index_rate=index_rate)
         
         
-        name = date_to_short_hash()
-        if filename is None:
-            if output_directory is None:
-                output_directory = "temp"
-            
-            new_path = os.path.join(output_directory, name + ".wav")
-            os.rename(output_path, new_path)
-            output_path = new_path
 
         return os.path.abspath(output_path)
 
@@ -169,7 +164,7 @@ def date_to_short_hash():
     current_date = datetime.now()
     date_str = current_date.strftime("%Y-%m-%d %H:%M:%S")
     sha256_hash = hashlib.sha256(date_str.encode()).hexdigest()
-    short_hash = sha256_hash[:8]
+    short_hash = sha256_hash[:10]
     return short_hash
 
 
@@ -179,8 +174,9 @@ async def get_voices():
 
 can_speak = True
 
-async def tts_comminicate(text,
+async def tts_communicate(text,
                           tmp_directory=None,
+                          filename=None,
                           voice="ru-RU-DmitryNeural",
                           tts_add_rate=0,
                           tts_add_volume=0,
@@ -221,7 +217,7 @@ async def speech(model_path,
     if tmp_directory and not os.path.exists(tmp_directory):
         os.makedirs(tmp_directory)
 
-    input_path, file_name = await tts_comminicate(tmp_directory=tmp_directory,
+    input_path, file_name = await tts_communicate(tmp_directory=tmp_directory,
               text=text,
               voice=voice,
               tts_add_rate=tts_add_rate,
@@ -232,21 +228,17 @@ async def speech(model_path,
         await asyncio.sleep(1)
     can_speak = False
 
+    
+    name = (file_name + ".wav") if not filename else filename
+
     output_path = rvc_convert(model_path=model_path,
                               input_path=input_path,
                               f0_up_key=pitch,
                               f0method=f0_method,
-                              output_filename=filename,
+                              output_filename=name,
                               output_dir_path=output_directory,
                               file_index=index_path,
                               index_rate=index_rate)
-    name = date_to_short_hash()
-    if filename is None:
-        if output_directory is None:
-                output_directory = "temp"
-        new_path = os.path.join(output_directory, name + ".wav")
-        os.rename(output_path, new_path)
-        output_path = new_path
 
     os.remove(input_path)
     can_speak = True

@@ -122,6 +122,8 @@ def rvc_convert(model_path,
 
     if last_model_path == "" or last_model_path != model_path or change_config:
         vc.get_vc(model_path)
+        if change_config:
+            logger.info(f"Changed device to: {device}")
         last_model_path = model_path
         
     tgt_sr, opt_wav =vc.vc_single(0,input_path,f0_up_key,None,f0method,file_index,file_index2,index_rate,filter_radius,resample_sr,rms_mix_rate,protect)

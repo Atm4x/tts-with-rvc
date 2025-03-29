@@ -1,7 +1,7 @@
 import os,sys,pdb,torch
 now_dir = os.getcwd()
 sys.path.append(now_dir)
-import sys
+import re
 import torch
 import numpy as np
 import logging
@@ -9,7 +9,6 @@ from huggingface_hub import hf_hub_download
 from scipy.io import wavfile
 from tts_with_rvc.infer.vc.modules import VC
 from tts_with_rvc.infer.vc.config import Config
-
 from fairseq.data.dictionary import Dictionary
 
 logger = logging.getLogger(__name__)
@@ -21,6 +20,17 @@ last_model_path = ""
 
 torch.serialization.safe_globals([Dictionary])
 torch.serialization.add_safe_globals([Dictionary])
+
+
+def is_valid_device_format(device):
+    if not isinstance(device, str):
+        return False
+
+    if device == "cpu":
+        return True
+
+    pattern = r"^(cuda|mps|dml):\d+$"
+    return re.match(pattern, device) is not None
 
 def rvc_convert(model_path,
             f0_up_key=0,
@@ -36,6 +46,7 @@ def rvc_convert(model_path,
             rms_mix_rate=0.5,
             protect=0.33,
             verbose=False,
+            device=None,
             output_filename = "out.wav"
           ):  
     '''
@@ -64,12 +75,6 @@ def rvc_convert(model_path,
     if not os.path.exists(os.path.join(os.getcwd(), "rmvpe.pt")):
         hf_hub_download(repo_id="lj1995/VoiceConversionWebUI", filename="rmvpe.pt", local_dir=os.getcwd(), token=False)
 
-    if torch.cuda.is_available():
-        device = "cuda:0"
-    elif torch.backends.mps.is_available():
-        device = "mps:0"
-    else:
-        print("Cuda or MPS not detected, but they are required")
 
     if not verbose:
         logging.getLogger('fairseq').setLevel(logging.ERROR)
@@ -105,8 +110,17 @@ def rvc_convert(model_path,
     else:
         is_half = False
 
+    change_config = False
     
-    if last_model_path == "" or last_model_path != model_path:
+    if device is not None:
+        if device != "cpu" and not re.match(r"^(cuda|mps|dml):\d+$", device):
+            raise ValueError(f"Invalid device format: '{device}'. Expected 'cuda:N', 'mps:N', 'dml:N' or 'cpu'")
+        
+        if device != vc.config.device:
+            vc.config.device = device
+            change_config = True
+
+    if last_model_path == "" or last_model_path != model_path or change_config:
         vc.get_vc(model_path)
         last_model_path = model_path
         

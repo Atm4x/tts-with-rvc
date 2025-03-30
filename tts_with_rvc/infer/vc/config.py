@@ -47,11 +47,11 @@ class Config:
             if self.gpu_mem <= 4:
                 self.preprocess_per = 3.0
         elif self.has_mps():
-            logger.info("No supported Nvidia GPU found")
+            logger.info("No supported Nvidia GPU found, using MPS")
             self.device = self.instead = "mps"
             self.is_half = False
         else:
-            logger.info("No supported Nvidia GPU found")
+            logger.info("No supported Nvidia GPU found, using CPU")
             self.device = self.instead = "cpu"
             self.is_half = False
 
@@ -82,3 +82,13 @@ class Config:
             % (self.is_half, self.device)
         )
         return x_pad, x_query, x_center, x_max
+    
+    @staticmethod
+    def has_mps() -> bool:
+        if not torch.backends.mps.is_available():
+            return False
+        try:
+            torch.zeros(1).to(torch.device("mps"))
+            return True
+        except Exception:
+            return False

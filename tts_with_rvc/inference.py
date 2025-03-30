@@ -28,7 +28,7 @@ class TTS_RVC:
         f0_method (str, optional): F0 extraction method for RVC ('rmvpe', 'pm', 'harvest', 'dio', 'crepe'). Defaults to "rmvpe".
         tmp_directory (str, optional): Directory for temporary TTS files. Default is Temp
     """
-    def __init__(self, model_path, tmp_directory=None, voice="ru-RU-DmitryNeural", index_path="", f0_method="rmvpe", output_directory=None, input_directory=None):
+    def __init__(self, model_path, tmp_directory=None, voice="ru-RU-DmitryNeural", index_path="", f0_method="rmvpe", device=None, output_directory=None, input_directory=None):
         if input_directory is not None:
             warnings.warn("Parameter 'input_directory' is deprecated and will be deleted in the future"
                         "Use tmp_directory instead of it", DeprecationWarning, stacklevel=2)
@@ -42,6 +42,7 @@ class TTS_RVC:
         self.current_model = model_path
         self.output_directory = output_directory
         self.f0_method = f0_method
+        self.device = device
         if(index_path != ""):
             if not os.path.exists(index_path):
                 logger.info("Index path not found, skipping...")
@@ -72,13 +73,21 @@ class TTS_RVC:
         self.output_directory = directory_path
     
     def __call__(self,
-                 text,
-                 pitch=0,
-                 tts_rate=0,
-                 tts_volume=0,
-                 tts_pitch=0,
-                 output_filename=None,
-                 index_rate=0.75) -> str:
+                text,
+                pitch=0,
+                tts_rate=0,
+                tts_volume=0,
+                tts_pitch=0,
+                output_filename=None,
+                index_rate=0.75,
+                is_half=True,
+                f0method=None,
+                file_index2="",
+                filter_radius=3,
+                resample_sr=0,
+                rms_mix_rate=0.5,
+                protect=0.33,
+                verbose=False) -> str:
         
         """
         Generates speech from text using Edge TTS and converts it using RVC.
@@ -89,8 +98,16 @@ class TTS_RVC:
             tts_rate (int, optional): Speed adjustment for Edge TTS in percentage (+-). Defaults to 0.
             tts_volume (int, optional): Volume adjustment for Edge TTS in percentage (+-). Defaults to 0.
             tts_pitch (int, optional): Pitch adjustment for Edge TTS in Hz (+-). Defaults to 0.
-            index_rate (float, optional): Contribution of the RVC index file (0 to 1). Defaults to 0.75.
             output_filename (str, optional): Name for the output file. If None, a unique name is generated. Defaults to None.
+            index_rate (float, optional): Contribution of the RVC index file (0 to 1). Defaults to 0.75.
+            is_half (bool, optional): Determines half-precision. True or False. Defaults to False.
+            f0method (str, optional): F0 extraction method: dio, harvest, crepe, rmvpe. Defaults to self.f0_method.
+            file_index2 (str, optional): Path to secondary index file. Defaults to empty string.
+            filter_radius (int, optional): Median filter radius for pitch results. Values >=3 reduce breathiness. Defaults to 3.
+            resample_sr (int, optional): Sample rate to resample audio to. 0 means no resampling. Defaults to 0.
+            rms_mix_rate (float, optional): Volume envelope scaling (0-1). Lower values mimic original volume. Defaults to 0.5.
+            protect (float, optional): Protection for voiceless consonants and breaths (0-1). Lower values increase protection. 0.5 disables. Defaults to 0.33.
+            verbose (bool, optional): Enable verbose logging. Defaults to False.
 
         Returns:
             str: The absolute path to the generated audio file.
@@ -99,32 +116,54 @@ class TTS_RVC:
             RuntimeError: If TTS or RVC process fails.
             ValueError: If parameters are invalid.
         """
-
+        
+        if f0method is None:
+            f0method = self.f0_method
+            
         path = (self.pool.submit
                 (asyncio.run, speech(model_path=self.current_model,
-                                     tmp_directory=self.tmp_directory,
-                                     text=text,
-                                     pitch=pitch,
-                                     voice=self.current_voice,
-                                     tts_add_rate=tts_rate,
-                                     tts_add_volume=tts_volume,
-                                     tts_add_pitch=tts_pitch,
-                                     output_directory=self.output_directory,
-                                     filename=output_filename,
-                                     index_path=self.index_path,
-                                     index_rate=index_rate)).result())
+                                    tmp_directory=self.tmp_directory,
+                                    text=text,
+                                    pitch=pitch,
+                                    voice=self.current_voice,
+                                    tts_add_rate=tts_rate,
+                                    tts_add_volume=tts_volume,
+                                    tts_add_pitch=tts_pitch,
+                                    output_directory=self.output_directory,
+                                    filename=output_filename,
+                                    index_path=self.index_path,
+                                    index_rate=index_rate,
+                                    is_half=is_half,
+                                    f0method=f0method,
+                                    file_index2=file_index2,
+                                    filter_radius=filter_radius,
+                                    resample_sr=resample_sr,
+                                    rms_mix_rate=rms_mix_rate,
+                                    protect=protect,
+                                    device=self.device,
+                                    verbose=verbose)).result())
         return path
 
-    def voiceover_file(self, input_path, pitch=0, output_directory=None, filename=None, index_rate=0.75):
+    def voiceover_file(self, input_path, pitch=0, output_directory=None, filename=None, index_rate=0.75, 
+                    is_half=True, f0method=None, file_index2="", filter_radius=3, 
+                    resample_sr=0, rms_mix_rate=0.5, protect=0.33, verbose=False) -> str:
         """
         Applies RVC voice conversion directly to an existing audio file.
 
         Args:
             input_path (str): Path to the input audio file (WAV recommended).
             pitch (int, optional): Pitch change (transpose) for RVC in semitones. Defaults to 0.
-            index_rate (float, optional): Contribution of the RVC index file (0 to 1). Defaults to 0.75.
             output_directory (str, optional): Directory to save voiceovered audios. Defaults to TTS_RVC's output directory.
             filename (str, optional): Name for the output file. If None, derived from input name + hash. Defaults to None.
+            index_rate (float, optional): Contribution of the RVC index file (0 to 1). Defaults to 0.75.
+            is_half (bool, optional): Determines half-precision. True or False. Defaults to False.
+            f0method (str, optional): F0 extraction method: dio, harvest, crepe, rmvpe. Defaults to self.f0_method.
+            file_index2 (str, optional): Path to secondary index file. Defaults to empty string.
+            filter_radius (int, optional): Median filter radius for pitch results. Values >=3 reduce breathiness. Defaults to 3.
+            resample_sr (int, optional): Sample rate to resample audio to. 0 means no resampling. Defaults to 0.
+            rms_mix_rate (float, optional): Volume envelope scaling (0-1). Lower values mimic original volume. Defaults to 0.5.
+            protect (float, optional): Protection for voiceless consonants and breaths (0-1). Lower values increase protection. 0.5 disables. Defaults to 0.33.
+            verbose (bool, optional): Enable verbose logging. Defaults to False.
 
         Returns:
             str: The absolute path to the converted audio file.
@@ -141,19 +180,28 @@ class TTS_RVC:
         
         if output_directory is None:
             output_directory = self.output_directory
+            
+        if f0method is None:
+            f0method = self.f0_method
 
         name = (date_to_short_hash() + ".wav") if filename is None else filename
         output_path = rvc_convert(model_path=self.current_model,
-                                  input_path=input_path,
-                                  f0_up_key=pitch,
-                                  f0method=self.f0_method,
-                                  output_filename=name,
-                                  output_dir_path=output_directory,
-                                  file_index=self.index_path,
-                                  index_rate=index_rate)
+                                input_path=input_path,
+                                f0_up_key=pitch,
+                                f0method=f0method,
+                                output_filename=name,
+                                output_dir_path=output_directory,
+                                file_index=self.index_path,
+                                file_index2=file_index2,
+                                index_rate=index_rate,
+                                _is_half=is_half,
+                                filter_radius=filter_radius,
+                                resample_sr=resample_sr,
+                                rms_mix_rate=rms_mix_rate,
+                                protect=protect,
+                                device=self.device,
+                                verbose=verbose)
         
-        
-
         return os.path.abspath(output_path)
 
     def process_args(self, text):
@@ -206,7 +254,7 @@ async def tts_communicate(text,
 async def speech(model_path,
                  text,
                  pitch=0,
-                 tmp_directory = None,
+                 tmp_directory=None,
                  voice="ru-RU-DmitryNeural",
                  tts_add_rate=0,
                  tts_add_volume=0,
@@ -215,34 +263,54 @@ async def speech(model_path,
                  output_directory=None,
                  index_path="",
                  index_rate=0.75,
-                 f0_method="rmvpe"):
-    global can_speak
+                 is_half=True,
+                 f0method="rmvpe",
+                 file_index2="",
+                 filter_radius=3,
+                 resample_sr=0,
+                 rms_mix_rate=0.5,
+                 protect=0.33,
+                 device=None,
+                 verbose=False):
     
+    global can_speak
+
     if tmp_directory and not os.path.exists(tmp_directory):
         os.makedirs(tmp_directory)
 
-    input_path, file_name = await tts_communicate(tmp_directory=tmp_directory,
-              text=text,
-              voice=voice,
-              tts_add_rate=tts_add_rate,
-              tts_add_volume=tts_add_volume,
-              tts_add_pitch=tts_add_pitch)
+    input_path, file_name = await tts_communicate(
+        tmp_directory=tmp_directory,
+        text=text,
+        voice=voice,
+        tts_add_rate=tts_add_rate,
+        tts_add_volume=tts_add_volume,
+        tts_add_pitch=tts_add_pitch
+    )
 
     while not can_speak:
         await asyncio.sleep(1)
     can_speak = False
 
-    
     name = (file_name + ".wav") if not filename else filename
 
-    output_path = rvc_convert(model_path=model_path,
-                              input_path=input_path,
-                              f0_up_key=pitch,
-                              f0method=f0_method,
-                              output_filename=name,
-                              output_dir_path=output_directory,
-                              file_index=index_path,
-                              index_rate=index_rate)
+    output_path = rvc_convert(
+        model_path=model_path,
+        input_path=input_path,
+        f0_up_key=pitch,
+        output_dir_path=output_directory,
+        _is_half=is_half,
+        f0method=f0method,
+        file_index=index_path,
+        file_index2=file_index2,
+        index_rate=index_rate,
+        filter_radius=filter_radius,
+        resample_sr=resample_sr,
+        rms_mix_rate=rms_mix_rate,
+        protect=protect,
+        verbose=verbose,
+        device=device,
+        output_filename=name
+    )
 
     os.remove(input_path)
     can_speak = True

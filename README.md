@@ -1,4 +1,4 @@
-# **TTS-with-RVC** 0.1.6
+# **TTS-with-RVC** 0.1.7
 
 ***TTS-with-RVC** (Text-to-Speech with RVC)* is a package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing a *RVC* module. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support.
 
@@ -27,7 +27,7 @@ You must have **CUDA or MPS** support for your GPU (mps is not tested yet).
 
 2) Then, install TTS-with-RVC using pip install:
 ```
-pip install git+https://github.com/Atm4x/tts-with-rvc.git#egg=tts_with_rvc
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple tts-with-rvc==0.1.7.5
 ```
 3) And finally, install [ffmpeg](https://ffmpeg.org/download.html) if you don't already have one, and add it to the folder with your script **or better yet** add ffmpeg to the `Environment variables` in `Path`. 
 

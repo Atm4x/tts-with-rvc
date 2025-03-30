@@ -32,25 +32,29 @@ windows_fairseq_links = {
     "310": "https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp310-cp310-win_amd64.whl",
 }
 
-linux_fairseq_links = {
-    "312": "https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp312-cp312-linux_x86_64.whl",
-    "311": "https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp311-cp311-linux_x86_64.whl",
-    "310": "https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp310-cp310-linux_x86_64.whl",
-}
+# linux_fairseq_links = {
+#     "312": "https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp312-cp312-linux_x86_64.whl",
+#     "311": "https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp311-cp311-linux_x86_64.whl",
+#     "310": "https://github.com/Atm4x/fairseq-win-whl-3.12/releases/download/3.12/fairseq-0.12.3-cp310-cp310-linux_x86_64.whl",
+# }
 
 if system == "Windows" and python_version in windows_fairseq_links:
-    install_requires.append(f"fairseq @ {windows_fairseq_links[python_version]}")
-elif system == "Linux" and python_version in linux_fairseq_links:
-    install_requires.append(f"fairseq @ {linux_fairseq_links[python_version]}")
+    install_requires.append(f"fairseq-built")
+# elif system == "Linux" and python_version in linux_fairseq_links:
+#     install_requires.append(f"fairseq @ {linux_fairseq_links[python_version]}")
 else:
-    install_requires.append("fairseq @ git+https://github.com/One-sixth/fairseq.git")
+    install_requires.append("fairseq-fixed")
 
 setup(
     name='tts_with_rvc',
-    version='0.1.6',
+    version='0.1.7.5',
+    license='MIT',
     description='TTS with RVC pipeline',
+    long_description=open('README.md', encoding='utf-8').read(),
+    long_description_content_type='text/markdown',
+    url='https://github.com/Atm4x/tts-with-rvc/',
     author='Atm4x',
     packages=find_packages(),
     install_requires=install_requires,
-    scripts=['tts_with_rvc/inference.py']
+    python_requires='<3.13',
 )

@@ -9,13 +9,7 @@ logger = logging.getLogger(__name__)
 
 class Config:
     def __init__(self):
-        if torch.cuda.is_available():
-            self.device = "cuda:0"
-        elif torch.backends.mps.is_available():
-            self.device = "mps:0"
-        else:
-            logger.info("Cuda or MPS not detected, initializing with cpu")
-            self.device = "cpu"
+        self.device = "cuda:0"
         self.is_half = True
         self.use_jit = False
         self.n_cpu = 0
@@ -88,3 +82,13 @@ class Config:
             % (self.is_half, self.device)
         )
         return x_pad, x_query, x_center, x_max
+    
+    @staticmethod
+    def has_mps() -> bool:
+        if not torch.backends.mps.is_available():
+            return False
+        try:
+            torch.zeros(1).to(torch.device("mps"))
+            return True
+        except Exception:
+            return False

@@ -110,8 +110,10 @@ class VC:
         hubert_model = hubert_model.to(config.device)
         if config.is_half:
             hubert_model = hubert_model.half()
+            self.hubert_is_half = True
         else:
             hubert_model = hubert_model.float()
+            self.hubert_is_half = False
         return hubert_model.eval()
 
     def vc_single(
@@ -139,7 +141,7 @@ class VC:
                 audio /= audio_max
             times = [0, 0, 0]
 
-            if self.hubert_model is None:
+            if self.hubert_model is None or self.config.is_half != self.hubert_is_half:
                 hubert_name = "hubert_base.pt"
                 if not os.path.exists(os.path.join(os.getcwd(), hubert_name)):
                     hf_hub_download(repo_id="lj1995/VoiceConversionWebUI", filename=hubert_name, local_dir=os.getcwd(), token=False)

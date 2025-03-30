@@ -5,7 +5,6 @@ import re
 import torch
 import numpy as np
 import logging
-from huggingface_hub import hf_hub_download
 from scipy.io import wavfile
 from tts_with_rvc.infer.vc.modules import VC
 from tts_with_rvc.infer.vc.config import Config
@@ -36,7 +35,7 @@ def rvc_convert(model_path,
             f0_up_key=0,
             input_path=None, 
             output_dir_path=None,
-            _is_half="False",
+            _is_half=None,
             f0method="rmvpe",
             file_index="",
             file_index2="",
@@ -57,7 +56,7 @@ def rvc_convert(model_path,
         f0_up_key (int) : transpose of the audio file, changes pitch (positive makes voice higher pitch)
         input_path (str) : path to audio file (use wav file)
         output_dir_path (str) : path to output directory, defaults to parent directory in output folder
-        _is_half (str) : Determines half-precision
+        _is_half (bool) : Determines half-precision
         f0method (str) : picks which f0 method to use: dio, harvest, crepe, rmvpe (requires rmvpe.pt)
         file_index (str) : path to file_index, defaults to None
         file_index2 (str) : path to file_index2, defaults to None.  #honestly don't know what this is for
@@ -72,8 +71,7 @@ def rvc_convert(model_path,
 
     '''
     global last_model_path, vc
-    if not os.path.exists(os.path.join(os.getcwd(), "rmvpe.pt")):
-        hf_hub_download(repo_id="lj1995/VoiceConversionWebUI", filename="rmvpe.pt", local_dir=os.getcwd(), token=False)
+    
 
 
     if not verbose:
@@ -102,15 +100,10 @@ def rvc_convert(model_path,
             output_file_name = "out.wav"
             output_file_path = os.path.join(output_dir_path, output_file_name)
 
-    # create_directory(output_dir_path)
-    # output_dir = get_path(output_dir_path)
-
-    if(is_half.lower() == 'true'):
-        is_half = True
-    else:
-        is_half = False
 
     change_config = False
+    change_is_half = False
+    change_forced_fp32 = False
     
     if device is not None:
         if device != "cpu" and not re.match(r"^(cuda|mps|dml):\d+$", device):
@@ -120,10 +113,27 @@ def rvc_convert(model_path,
             vc.config.device = device
             change_config = True
 
-    if last_model_path == "" or last_model_path != model_path or change_config:
+    if vc.config.is_half == True and f0method.lower() == "fcpe":
+        logger.debug(f"before forced is half: {vc.config.is_half}")
+        vc.config.is_half = False
+        logger.debug(f"after forced is half: {vc.config.is_half}")
+        change_forced_fp32 = True
+    elif is_half != vc.config.is_half and f0method.lower() != "fcpe":
+        vc.config.is_half = is_half
+        change_is_half = True
+
+    change_any = change_config or change_is_half or change_forced_fp32
+
+    if last_model_path == "" or last_model_path != model_path or change_any:
         vc.get_vc(model_path)
+        logger.debug(f"after get vc: {vc.config.is_half}")
         if change_config:
             logger.info(f"Changed device to: {device}")
+        if change_is_half:
+            logger.info(f"Changed half to: {is_half}")
+        if change_forced_fp32:
+            logger.info(f"Forced half to: {vc.config.is_half}")
+            logger.debug(f"after get vc: {vc.config.is_half} == {is_half}")
         last_model_path = model_path
         
     tgt_sr, opt_wav =vc.vc_single(0,input_path,f0_up_key,None,f0method,file_index,file_index2,index_rate,filter_radius,resample_sr,rms_mix_rate,protect)

@@ -20,7 +20,9 @@ install_requires = [
     "audioread",  
     "pyworld==0.3.2",
     "torchcrepe==0.0.20",
-    "numba==0.60.0"
+    "numba==0.60.0",
+    "einops",
+    "local_attention"
 ]
 
 python_version = f"{sys.version_info.major}{sys.version_info.minor}"
@@ -47,7 +49,7 @@ else:
 
 setup(
     name='tts_with_rvc',
-    version='0.1.7.5',
+    version='0.1.8',
     license='MIT',
     description='TTS with RVC pipeline',
     long_description=open('README.md', encoding='utf-8').read(),

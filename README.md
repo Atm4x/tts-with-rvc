@@ -8,7 +8,7 @@ Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 
 ## Release notes
 
-**0.1.8** - March 30, 2025: Added all RVC parameters, implemented `FCPE` support, added PyPL installation support, fixed bug with rmvpe-only f0 method.
+**0.1.8** - March 30, 2025: Added all RVC parameters, implemented `FCPE` support, added PyPI installation support, fixed bug with rmvpe-only f0 method.
 
 **0.1.6** - March 28, 2025: Updated all files with the latest RVC commit - 1.5-2x times faster inference. Reduced required packages. ONNX support [here](https://github.com/Atm4x/tts-with-rvc/tree/0.1.6-onnx).
 

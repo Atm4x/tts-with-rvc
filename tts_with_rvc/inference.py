@@ -80,7 +80,7 @@ class TTS_RVC:
                 tts_pitch=0,
                 output_filename=None,
                 index_rate=0.75,
-                is_half=True,
+                is_half=None,
                 f0method=None,
                 file_index2="",
                 filter_radius=3,
@@ -100,7 +100,7 @@ class TTS_RVC:
             tts_pitch (int, optional): Pitch adjustment for Edge TTS in Hz (+-). Defaults to 0.
             output_filename (str, optional): Name for the output file. If None, a unique name is generated. Defaults to None.
             index_rate (float, optional): Contribution of the RVC index file (0 to 1). Defaults to 0.75.
-            is_half (bool, optional): Determines half-precision. True or False. Defaults to False.
+            is_half (bool, optional): Determines half-precision. True or False. Defaults to None.
             f0method (str, optional): F0 extraction method: dio, harvest, crepe, rmvpe. Defaults to self.f0_method.
             file_index2 (str, optional): Path to secondary index file. Defaults to empty string.
             filter_radius (int, optional): Median filter radius for pitch results. Values >=3 reduce breathiness. Defaults to 3.
@@ -145,7 +145,7 @@ class TTS_RVC:
         return path
 
     def voiceover_file(self, input_path, pitch=0, output_directory=None, filename=None, index_rate=0.75, 
-                    is_half=True, f0method=None, file_index2="", filter_radius=3, 
+                    is_half=None, f0method=None, file_index2="", filter_radius=3, 
                     resample_sr=0, rms_mix_rate=0.5, protect=0.33, verbose=False) -> str:
         """
         Applies RVC voice conversion directly to an existing audio file.
@@ -156,7 +156,7 @@ class TTS_RVC:
             output_directory (str, optional): Directory to save voiceovered audios. Defaults to TTS_RVC's output directory.
             filename (str, optional): Name for the output file. If None, derived from input name + hash. Defaults to None.
             index_rate (float, optional): Contribution of the RVC index file (0 to 1). Defaults to 0.75.
-            is_half (bool, optional): Determines half-precision. True or False. Defaults to False.
+            is_half (bool, optional): Determines half-precision. True or False. Defaults to None.
             f0method (str, optional): F0 extraction method: dio, harvest, crepe, rmvpe. Defaults to self.f0_method.
             file_index2 (str, optional): Path to secondary index file. Defaults to empty string.
             filter_radius (int, optional): Median filter radius for pitch results. Values >=3 reduce breathiness. Defaults to 3.
@@ -228,7 +228,6 @@ can_speak = True
 
 async def tts_communicate(text,
                           tmp_directory=None,
-                          filename=None,
                           voice="ru-RU-DmitryNeural",
                           tts_add_rate=0,
                           tts_add_volume=0,
@@ -263,7 +262,7 @@ async def speech(model_path,
                  output_directory=None,
                  index_path="",
                  index_rate=0.75,
-                 is_half=True,
+                 is_half=None,
                  f0method="rmvpe",
                  file_index2="",
                  filter_radius=3,

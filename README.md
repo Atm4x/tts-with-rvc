@@ -1,4 +1,4 @@
-# **TTS-with-RVC** 0.1.8
+# **TTS-with-RVC** 0.1.9
 
 ***TTS-with-RVC** (Text-to-Speech with RVC)* is a package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing a *RVC* module. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support.
 
@@ -7,6 +7,8 @@ Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
 **It may contain bugs. Report an issue in case of error.**
 
 ## Release notes
+
+**0.1.9** - March 31, 2025: Some small fixes, fixed fairseq installation for linux. 
 
 **0.1.8** - March 30, 2025: Added all RVC parameters, implemented `FCPE` support, added PyPI installation support, fixed bug with rmvpe-only f0 method.
 

@@ -20,6 +20,5 @@ setup(
         "onnxruntime-gpu",
         "onnxruntime-directml",
         "pyworld==0.3.2",
-    ],
-    scripts=['tts_with_rvc/inference.py']
+    ]
 )

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='tts_with_rvc',
-    version='0.1.6.onnx',
+    version='0.1.10a',
     description='TTS with RVC pipeline (ONNX)',
     author='Atm4x',
     packages=find_packages(),

@@ -1,9 +1,10 @@
 *.pt
+*.onnx
 /src
 /input
 /output
 /.idea
 /venv
-/tts_with_rvc.egg-info
+/tts_with_rvc_onnx.egg-info
 build
 __pycache__

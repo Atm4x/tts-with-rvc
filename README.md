@@ -30,7 +30,7 @@ You must have **ONNX Runtime** compatible hardware/drivers if using GPU accelera
 
 1.  Install the package using pip:
     ```bash
-    pip install git+https://github.com/Atm4x/tts-with-rvc.git@0.1.9-onnx#egg=tts-with-rvc-onnx
+    pip install git+https://github.com/Atm4x/tts-with-rvc.git@onnx#egg=tts-with-rvc-onnx
     ```
 
     This will install dependencies, including an appropriate `onnxruntime-*` package based on detected hardware (on Windows).

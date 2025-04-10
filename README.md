@@ -8,7 +8,7 @@ ONNX Runtime is used for RVC inference, potentially leveraging hardware accelera
 
 ## Release notes
 
-**0.1.9** - April 10, 2025:(Current ONNX Branch Sync
+**0.1.9** - April 10, 2025: Current ONNX Branch Sync
 *   Synced RVC parameters with main branch 0.1.9 (`rms_mix_rate`, `protect`, `filter_radius`, `resample_sr`, `file_index2`, `verbose`).
 *   Added support for F0 predictors: `rmvpe` (using ONNX), `pm`, `dio`, `harvest`.
 *   Fixed F0 length mismatch issue and implemented correct audio padding.

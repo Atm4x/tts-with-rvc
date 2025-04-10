@@ -2,7 +2,7 @@
 
 ***TTS-with-RVC-ONNX** (Text-to-Speech with RVC using ONNX)* is a package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing an *RVC* module running on the ONNX Runtime. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support, optimized for various hardware backends (DirectML, CUDA, CPU).
 
-ONNX Runtime is used for RVC inference, potentially leveraging hardware acceleration (DirectML on Windows/AMD, CUDA on NVIDIA). PyTorch is required *only* for specific F0 predictors (`crepe`, `rmvpe`).
+ONNX Runtime is used for RVC inference, potentially leveraging hardware acceleration (DirectML on Windows/AMD, CUDA on NVIDIA). PyTorch is required *only* for specific F0 predictors (`rmvpe`).
 
 **It may contain bugs. Report an issue in case of error.**
 

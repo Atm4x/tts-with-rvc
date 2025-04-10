@@ -1,4 +1,4 @@
-# **TTS-with-RVC-ONNX** 0.1.9 ONNX
+# **TTS-with-RVC-ONNX** 0.1.9
 
 ***TTS-with-RVC-ONNX** (Text-to-Speech with RVC using ONNX)* is a package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing an *RVC* module running on the ONNX Runtime. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support, optimized for various hardware backends (DirectML, CUDA, CPU).
 

@@ -16,7 +16,7 @@ install_requires = [
     "scikit-learn",
     "tqdm>=4.63.1",
     "audioread",
-    "pyworld==0.3.2",
+    "pyworld==0.3.5",
     "torchcrepe==0.0.20",
     "numba==0.60.0",
     "einops",

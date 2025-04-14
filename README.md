@@ -21,7 +21,7 @@ ONNX Runtime is used for RVC inference, potentially leveraging hardware accelera
 
 ## Prerequisites
 
-You must have **Python >= 3.8 and < 3.12** installed (3.10 is recommended).
+You must have **Python >= 3.8 and <= 3.12** installed (3.12 is recommended).
 You must have **ONNX Runtime** compatible hardware/drivers if using GPU acceleration (DirectML for AMD on Windows, CUDA for NVIDIA). The CPU provider works generally.
 *   **PyTorch** is required *only* if using `f0_method='rmvpe'`.
 *   **FFmpeg** must be installed and accessible in your system's PATH or placed in the script's directory. Download from [ffmpeg.org](https://ffmpeg.org/download.html).

@@ -286,13 +286,7 @@ class OnnxRVC:
                  raise RuntimeError(f"ContentVec model not found and download failed.") from e
 
         self.vec_model = ContentVec(vec_local_path, device)
-        providers = self._get_onnx_providers(device)
-        try:
-            self.model = ort.InferenceSession(model_path, providers=providers)
-            logger.info(f"RVC ONNX model loaded with providers: {self.model.get_providers()}")
-        except Exception as e:
-            logger.error(f"Failed to load RVC ONNX model: {e}")
-            raise RuntimeError(f"Failed to load RVC ONNX model: {e}") from e
+        
         self.sampling_rate = sr
         self.hop_size = hop_size
         self.device = device
@@ -305,11 +299,33 @@ class OnnxRVC:
         self.t_pad_hubert_sr = int(self.sr_hubert * self.pad_seconds)
         logger.info(f"Padding: {self.pad_seconds}s ({self.t_pad_main_sr} samples @ main SR, {self.t_pad_hubert_sr} samples @ 16k)")
 
+        self.load_new_rvc_model(model_path)
+
     def _get_onnx_providers(self, device):
         if device == "cpu" or device is None: return ["CPUExecutionProvider"]
         elif device.startswith("cuda"): return ["CUDAExecutionProvider", "CPUExecutionProvider"]
         elif device == "dml": return ["DmlExecutionProvider", "CPUExecutionProvider"]
         else: logger.warning(f"Unsupported device '{device}', falling back to CPU."); return ["CPUExecutionProvider"]
+
+    def _load_rvc_session(self, model_path):
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"RVC model file not found: {model_path}")
+        providers = self._get_onnx_providers(self.device)
+        try:
+            if hasattr(self, 'model') and self.model is not None:
+                del self.model
+            self.model = ort.InferenceSession(model_path, providers=providers)
+            self.current_rvc_model_path = model_path
+        except Exception as e:
+            self.model = None
+            self.current_rvc_model_path = None
+            raise RuntimeError(f"Failed to load RVC ONNX session: {e}") from e
+        
+    def load_new_rvc_model(self, model_path):
+        if self.current_rvc_model_path == model_path and self.model is not None:
+            logger.info(f"Model '{model_path}' is already loaded. Skipping reload.")
+            return
+        self._load_rvc_session(model_path)
 
     def load_index(self, index_path):
         if not index_path or not os.path.exists(index_path):

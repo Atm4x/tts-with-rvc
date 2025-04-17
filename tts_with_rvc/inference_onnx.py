@@ -89,36 +89,33 @@ class TTS_RVC:
         # TODO: Сделать имя vec_path динамическим в зависимости от модели RVC (v1/v2)? Пока хардкод.
         self.vec_path = "vec-768-layer-12.onnx"
         vec_local_path = os.path.join(os.getcwd(), self.vec_path)
-        if not os.path.exists(vec_local_path):
-            logger.info(f"Downloading vec model '{self.vec_path}' for ONNX backend...")
-            try:
-                hf_hub_download(
-                    repo_id="NaruseMioShirakana/MoeSS-SUBModel",
-                    filename=self.vec_path,
-                    local_dir=os.getcwd(),
-                    token=False # Используем False вместо None для явности
-                )
-            except Exception as e:
-                 logger.error(f"Failed to download vec model: {e}")
-                 raise RuntimeError(f"Failed to download required model file: {self.vec_path}") from e
+        # if not os.path.exists(vec_local_path):
+        #     logger.info(f"Downloading vec model '{self.vec_path}' for ONNX backend...")
+        #     try:
+        #         hf_hub_download(
+        #             repo_id="NaruseMioShirakana/MoeSS-SUBModel",
+        #             filename=self.vec_path,
+        #             local_dir=os.getcwd(),
+        #             token=False # Используем False вместо None для явности
+        #         )
+        #     except Exception as e:
+        #          logger.error(f"Failed to download vec model: {e}")
+        #          raise RuntimeError(f"Failed to download required model file: {self.vec_path}") from e
 
-        # Import OnnxRVC when using ONNX backend
         try:
             from tts_with_rvc.lib.infer_pack.onnx_inference import OnnxRVC
-            # Передаем все необходимые параметры в конструктор OnnxRVC
+            # Создаем экземпляр OnnxRVC. Он выполнит всю загрузку ONNX.
             self.onnx_model = OnnxRVC(
-                model_path=self.current_model,
-                vec_path=vec_local_path, # Используем локальный путь
+                model_path=self.current_model, # Path to the initial RVC model
+                vec_path=vec_local_path,       # Path to ContentVec model
                 sr=self.sampling_rate,
                 hop_size=self.hop_size,
                 device=self.device
             )
-            logger.info(f"ONNX backend initialized with device: {self.device}")
-        except ImportError as e:
-            logger.error("Failed to import OnnxRVC. Make sure the package is installed correctly.")
-            raise ImportError("Failed to import OnnxRVC. Is the package installed?") from e
+            logger.info(f"ONNX backend (OnnxRVC instance) initialized with device: {self.device}")
         except Exception as e:
             logger.error(f"Failed to initialize ONNX backend: {e}")
+            self.onnx_model = None
             raise RuntimeError(f"Failed to initialize ONNX backend: {e}") from e
 
     def _start_background_loop(self):
@@ -138,19 +135,43 @@ class TTS_RVC:
         self._loop_thread.start()
 
     def set_device(self, device):
-        """Change ONNX device (dml, cuda:0, cpu, etc)"""
         if device != self.device:
             logger.info(f"Changing ONNX device from '{self.device}' to '{device}'")
+            old_device = self.device
             self.device = device
-            # Re-initialize the model with the new device
             try:
-                self._initialize_backend()
-                logger.info(f"Successfully changed device to '{self.device}'")
+                if self.onnx_model is not None:
+                    del self.onnx_model # Удаляем старый инстанс перед реинициализацией
+                    self.onnx_model = None
+                self._initialize_backend() # Полная реинициализация для смены device
+                logger.info(f"Successfully changed device to '{self.device}' and re-initialized backend.")
             except Exception as e:
                  logger.error(f"Failed to re-initialize backend for device '{device}': {e}")
-                 # Optionally revert device change or raise error
-                 # self.device = old_device # Revert
+                 self.device = old_device # Попытка отката
+                 # Может потребоваться более сложная логика восстановления или просто ошибка
                  raise RuntimeError(f"Failed to set device to '{device}'") from e
+
+    def set_model(self, model_path):
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model file not found: {model_path}")
+
+        if self.onnx_model is None:
+             raise RuntimeError("Backend (OnnxRVC) is not initialized. Cannot set model.")
+
+        current_loaded_path = self.onnx_model.current_rvc_model_path
+        if model_path != current_loaded_path:
+            logger.info(f"Changing RVC model from '{current_loaded_path}' to '{model_path}'")
+            try:
+                # Делегируем перезагрузку модели экземпляру OnnxRVC
+                self.onnx_model.load_new_rvc_model(model_path)
+                self.current_model = model_path # Обновляем путь для справки
+                logger.info(f"Successfully changed RVC model to '{self.current_model}'")
+            except Exception as e:
+                logger.error(f"Failed to load new RVC model '{model_path}': {e}")
+                # self.current_model НЕ обновляем, т.к. загрузка не удалась
+                raise RuntimeError(f"Failed to set model to '{model_path}'") from e
+        else:
+            logger.debug(f"Model '{model_path}' is already loaded.")
 
     def set_voice(self, voice):
         self.current_voice = voice
@@ -421,6 +442,9 @@ class TTS_RVC:
                  logger.warning(f"Error stopping loop: {e}") # Может возникнуть, если цикл уже остановлен
         if hasattr(self, '_loop_thread') and self._loop_thread and self._loop_thread.is_alive():
             self._loop_thread.join(timeout=1.0)
+        if hasattr(self, 'onnx_model') and self.onnx_model is not None:
+             del self.onnx_model
+             self.onnx_model = None
 
 
 def date_to_short_hash():

@@ -272,6 +272,11 @@ class OnnxRVC:
         self, model_path, sr=40000, hop_size=512,
         vec_path="vec-768-layer-12.onnx", device="cpu", x_pad=3,
     ):
+        
+        self.device = device
+        self.current_rvc_model_path = None
+        self.model = None
+
         logger.info(f"Initializing OnnxRVC: model={model_path}, device={device}, SR={sr}")
         vec_local_path = os.path.join(os.getcwd(), vec_path)
         if not os.path.exists(vec_local_path):

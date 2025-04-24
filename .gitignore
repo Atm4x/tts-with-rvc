@@ -8,3 +8,4 @@
 /tts_with_rvc_onnx.egg-info
 build
 __pycache__
+dist

@@ -278,12 +278,19 @@ class OnnxRVC:
         self.model = None
 
         logger.info(f"Initializing OnnxRVC: model={model_path}, device={device}, SR={sr}")
+        
+        vec_filename = os.path.basename(vec_path)
         vec_local_path = os.path.join(os.getcwd(), vec_path)
+        
+        if vec_local_dir and not os.path.exists(vec_local_dir):
+             os.makedirs(vec_local_dir, exist_ok=True)
+             logger.info(f"Created directory: {vec_local_dir}")
+        
         if not os.path.exists(vec_local_path):
-             logger.warning(f"ContentVec model '{vec_path}' not found locally.")
-             logger.info(f"Attempting to download '{vec_path}' from 'NaruseMioShirakana/MoeSS-SUBModel'...")
+             logger.warning(f"ContentVec model '{vec_filename}' not found locally.")
+             logger.info(f"Attempting to download '{vec_filename}' from 'NaruseMioShirakana/MoeSS-SUBModel'...")
              try:
-                 hf_hub_download(repo_id="NaruseMioShirakana/MoeSS-SUBModel", filename=vec_path, local_dir=os.getcwd(), token=False)
+                 hf_hub_download(repo_id="NaruseMioShirakana/MoeSS-SUBModel", filename=vec_filename, local_dir=os.getcwd(), token=False)
                  logger.info(f"Successfully downloaded '{vec_path}'.")
                  if not os.path.exists(vec_local_path): raise FileNotFoundError("Download success, but file not found.")
              except Exception as e:

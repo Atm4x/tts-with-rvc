@@ -26,7 +26,7 @@ install_requires = [
 ]
 setup(
     name='tts_with_rvc',
-    version='0.1.9',
+    version='0.1.9.1',
     license='MIT',
     description='TTS with RVC pipeline',
     long_description=open('README.md', encoding='utf-8').read(),

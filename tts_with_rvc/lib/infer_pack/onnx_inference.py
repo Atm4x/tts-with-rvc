@@ -393,6 +393,21 @@ class OnnxRVC:
         else:
              protected_hubert = hubert_features * protect_mask
         return protected_hubert.astype(np.float32)
+    
+    def set_sr_and_hop(self, sr, hop):
+        if sr == self.sampling_rate and hop == self.hop_size:
+            return
+
+        self.sampling_rate = int(sr)
+        self.hop_size      = int(hop)
+        self.f0_hop_size   = int(160 * (sr / 16000))
+        self.t_pad_main_sr = int(sr * self.pad_seconds)
+        # self.t_pad_hubert_sr остаётся = 16000 * pad_seconds
+
+        logger.info(
+            f"SR/hop обновлены → SR={self.sampling_rate}, hop={self.hop_size}, "
+            f"f0_hop={self.f0_hop_size}, t_pad={self.t_pad_main_sr}"
+        )
 
     def forward(self, hubert, hubert_length, pitch, pitchf, ds, rnd):
         hubert_transposed = hubert.transpose(0, 2, 1)

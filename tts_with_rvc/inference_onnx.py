@@ -117,6 +117,11 @@ class TTS_RVC:
             logger.error(f"Failed to initialize ONNX backend: {e}")
             self.onnx_model = None
             raise RuntimeError(f"Failed to initialize ONNX backend: {e}") from e
+        
+    def set_sampling_params(self, sr, hop):
+        if self.onnx_model is None:
+            raise RuntimeError("Backend not initialised")
+        self.onnx_model.set_sr_and_hop(sr, hop)
 
     def _start_background_loop(self):
         """Запускает цикл событий в отдельном потоке"""

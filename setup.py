@@ -65,7 +65,7 @@ extras_require = {
 
 setup(
     name='tts-with-rvc-onnx', 
-    version='0.1.9.1',
+    version='0.1.9.2',
     description='TTS with RVC pipeline (ONNX Version)', 
     author='Atm4x', 
     long_description=open('README.md', encoding='utf-8').read(),

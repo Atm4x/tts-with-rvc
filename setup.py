@@ -31,7 +31,7 @@ install_requires = [
     "pyworld>=0.3.2",
     "setuptools",
     "onnxruntime>=1.15,<2.0",
-    "faiss-cpu>=1.7.3",
+    "faiss-cpu<1.11.0",
     "torch>=1.13.1",
     "torchaudio>=0.13.1",
     "torchcrepe>=0.0.20",

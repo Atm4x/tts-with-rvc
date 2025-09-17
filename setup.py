@@ -37,6 +37,7 @@ install_requires = [
     "torchcrepe>=0.0.20",
     "praat-parselmouth>=0.4.3",
     "scipy>=1.10.0",
+    "cffi<2.0.0"
 ]
 
 # # Determine GPU vendor and select appropriate ONNX Runtime package
@@ -65,7 +66,7 @@ extras_require = {
 
 setup(
     name='tts-with-rvc-onnx', 
-    version='0.1.9.2',
+    version='0.1.9.4',
     description='TTS with RVC pipeline (ONNX Version)', 
     author='Atm4x', 
     long_description=open('README.md', encoding='utf-8').read(),

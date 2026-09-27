@@ -8,6 +8,7 @@ import logging
 from scipy.io import wavfile
 from tts_with_rvc.infer.vc.modules import VC
 from tts_with_rvc.infer.vc.config import Config
+from tts_with_rvc.cuda_device import set_cuda_device_for_thread
 from fairseq.data.dictionary import Dictionary
 
 logger = logging.getLogger(__name__)
@@ -108,6 +109,8 @@ def rvc_convert(model_path,
     if device is not None:
         if device != "cpu" and not re.match(r"^(cuda|mps|dml):\d+$", device):
             raise ValueError(f"Invalid device format: '{device}'. Expected 'cuda:N', 'mps:N', 'dml:N' or 'cpu'")
+        if device.startswith("cuda:"):
+            set_cuda_device_for_thread(torch, device)
         
         if device != vc.config.device:
             vc.config.device = device

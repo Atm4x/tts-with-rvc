@@ -39,8 +39,8 @@ def rand_gumbel(shape):
 
 
 def rand_gumbel_like(x):
-    g = rand_gumbel(x.size()).to(dtype=x.dtype, device=x.device)
-    return g
+    uniform_samples = torch.rand_like(x) * 0.99998 + 0.00001
+    return -torch.log(-torch.log(uniform_samples))
 
 
 def slice_segments(x, ids_str, segment_size=4):
@@ -66,19 +66,29 @@ def rand_slice_segments(x, x_lengths=None, segment_size=4):
     if x_lengths is None:
         x_lengths = t
     ids_str_max = x_lengths - segment_size + 1
-    ids_str = (torch.rand([b]).to(device=x.device) * ids_str_max).to(dtype=torch.long)
+    ids_str = (
+        torch.rand([b], device=x.device) * ids_str_max
+    ).to(dtype=torch.long)
     ret = slice_segments(x, ids_str, segment_size)
     return ret, ids_str
 
 
-def get_timing_signal_1d(length, channels, min_timescale=1.0, max_timescale=1.0e4):
-    position = torch.arange(length, dtype=torch.float)
+def get_timing_signal_1d(
+    length,
+    channels,
+    min_timescale=1.0,
+    max_timescale=1.0e4,
+    *,
+    device=None,
+):
+    position = torch.arange(length, dtype=torch.float, device=device)
     num_timescales = channels // 2
     log_timescale_increment = math.log(float(max_timescale) / float(min_timescale)) / (
         num_timescales - 1
     )
     inv_timescales = min_timescale * torch.exp(
-        torch.arange(num_timescales, dtype=torch.float) * -log_timescale_increment
+        torch.arange(num_timescales, dtype=torch.float, device=device)
+        * -log_timescale_increment
     )
     scaled_time = position.unsqueeze(0) * inv_timescales.unsqueeze(1)
     signal = torch.cat([torch.sin(scaled_time), torch.cos(scaled_time)], 0)
@@ -89,19 +99,31 @@ def get_timing_signal_1d(length, channels, min_timescale=1.0, max_timescale=1.0e
 
 def add_timing_signal_1d(x, min_timescale=1.0, max_timescale=1.0e4):
     b, channels, length = x.size()
-    signal = get_timing_signal_1d(length, channels, min_timescale, max_timescale)
-    return x + signal.to(dtype=x.dtype, device=x.device)
+    signal = get_timing_signal_1d(
+        length,
+        channels,
+        min_timescale,
+        max_timescale,
+        device=x.device,
+    )
+    return x + signal.to(dtype=x.dtype)
 
 
 def cat_timing_signal_1d(x, min_timescale=1.0, max_timescale=1.0e4, axis=1):
     b, channels, length = x.size()
-    signal = get_timing_signal_1d(length, channels, min_timescale, max_timescale)
-    return torch.cat([x, signal.to(dtype=x.dtype, device=x.device)], axis)
+    signal = get_timing_signal_1d(
+        length,
+        channels,
+        min_timescale,
+        max_timescale,
+        device=x.device,
+    )
+    return torch.cat([x, signal.to(dtype=x.dtype)], axis)
 
 
-def subsequent_mask(length):
-    mask = torch.tril(torch.ones(length, length)).unsqueeze(0).unsqueeze(0)
-    return mask
+def subsequent_mask(length, *, device=None, dtype=None):
+    mask = torch.ones(length, length, device=device, dtype=dtype)
+    return torch.tril(mask).unsqueeze(0).unsqueeze(0)
 
 
 @torch.jit.script
@@ -121,7 +143,7 @@ def fused_add_tanh_sigmoid_multiply(input_a, input_b, n_channels):
 
 
 def convert_pad_shape(pad_shape: List[List[int]]) -> List[int]:
-    return torch.tensor(pad_shape).flip(0).reshape(-1).int().tolist()
+    return [value for pair in reversed(pad_shape) for value in pair]
 
 
 def shift_1d(x):

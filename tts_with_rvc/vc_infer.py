@@ -1,148 +1,201 @@
-import os,sys,torch
-now_dir = os.getcwd()
-sys.path.append(now_dir)
-import re
-import torch
-import numpy as np
+from __future__ import annotations
+
 import logging
+import os
+import threading
+from pathlib import Path
+
 from scipy.io import wavfile
+
+from tts_with_rvc.assets import ModelStore
 from tts_with_rvc.infer.vc.modules import VC
-from tts_with_rvc.infer.vc.config import Config
-from fairseq.data.dictionary import Dictionary
+from tts_with_rvc.runtime import RuntimeConfig
 
 logger = logging.getLogger(__name__)
 
-
-config = Config()
-vc = VC(config)
-last_model_path = ""
-initial_is_half = config.is_half
-
-torch.serialization.safe_globals([Dictionary])
-torch.serialization.add_safe_globals([Dictionary])
+_UNSET = object()
 
 
-def is_valid_device_format(device):
-    if not isinstance(device, str):
-        return False
-
-    if device == "cpu":
-        return True
-
-    pattern = r"^(cuda|mps|dml):\d+$"
-    return re.match(pattern, device) is not None
 
 def resolve_output_path(output_dir_path, output_filename):
     if output_filename and os.path.isabs(output_filename):
-        return output_filename
+        output_path = Path(output_filename)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        return str(output_path)
 
-    filename = output_filename if output_filename else "out.wav"
-
-    if output_dir_path:
-        os.makedirs(output_dir_path, exist_ok=True)
-        return os.path.join(output_dir_path, filename)
-    
-    temp_dir = "temp"
-    os.makedirs(temp_dir, exist_ok=True)
-    return os.path.join(temp_dir, filename)
-
-def rvc_convert(model_path,
-            f0_up_key=0,
-            input_path=None, 
-            output_dir_path=None,
-            _is_half=None,
-            f0method="rmvpe",
-            file_index="",
-            file_index2="",
-            index_rate=1,
-            filter_radius=3,
-            resample_sr=0,
-            rms_mix_rate=0.5,
-            protect=0.33,
-            verbose=False,
-            device=None,
-            output_filename = "out.wav"
-          ):  
-    '''
-    Function to call for the rvc voice conversion.  All parameters are the same present in that of the webui
-
-    Args: 
-        model_path (str) : path to the rvc voice model you're using
-        f0_up_key (int) : transpose of the audio file, changes pitch (positive makes voice higher pitch)
-        input_path (str) : path to audio file (use wav file)
-        output_dir_path (str) : path to output directory, defaults to parent directory in output folder
-        _is_half (bool) : Determines half-precision
-        f0method (str) : picks which f0 method to use: dio, harvest, crepe, rmvpe (requires rmvpe.pt)
-        file_index (str) : path to file_index, defaults to None
-        file_index2 (str) : path to file_index2, defaults to None.  #honestly don't know what this is for
-        index_rate (int) : strength of the index file if provided
-        filter_radius (int) : if >=3: apply median filtering to the harvested pitch results. The value represents the filter radius and can reduce breathiness.
-        resample_sr (int) : quality at which to resample audio to, defaults to no resample
-        rmx_mix_rate (int) : adjust the volume envelope scaling. Closer to 0, the more it mimicks the volume of the original vocals. Can help mask noise and make volume sound more natural when set relatively low. Closer to 1 will be more of a consistently loud volume
-        protect (int) : protect voiceless consonants and breath sounds to prevent artifacts such as tearing in electronic music. Set to 0.5 to disable. Decrease the value to increase protection, but it may reduce indexing accuracy
-
-    Returns:
-        output_file_path (str) : file path and name of tshe output wav file
-
-    '''
-    global last_model_path, vc
-    
+    filename = output_filename or "out.wav"
+    output_dir = Path(output_dir_path) if output_dir_path else Path("temp")
+    output_path = output_dir / filename
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    return str(output_path)
 
 
-    if not verbose:
-        logging.getLogger('fairseq').setLevel(logging.ERROR)
-        logging.getLogger('rvc').setLevel(logging.ERROR)
+class RVCConverter:
+    def __init__(
+        self,
+        *,
+        device=None,
+        is_half: bool | None = None,
+        models_dir: str | os.PathLike[str] | None = None,
+    ) -> None:
+        self._lock = threading.RLock()
+        self._model_store = ModelStore(models_dir)
+        self._device_spec = device
+        self._is_half_policy = is_half
+        self._config = RuntimeConfig(device=device, is_half=is_half)
+        self._vc = VC(self._config, model_store=self._model_store)
+        self._closed = False
 
-    if _is_half != None:
-        is_half = _is_half
-    else:
-        is_half = initial_is_half
+    @property
+    def config(self) -> RuntimeConfig:
+        return self._config
 
-    output_file_path = resolve_output_path(output_dir_path, output_filename)
+    @property
+    def device(self):
+        return self._config.device
+
+    @property
+    def is_half(self) -> bool:
+        return self._config.is_half
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise RuntimeError("RVCConverter is closed")
+
+    def reconfigure(self, *, device=_UNSET, is_half=_UNSET) -> None:
+        with self._lock:
+            self._ensure_open()
+            candidate_device = self._device_spec if device is _UNSET else device
+            candidate_precision = (
+                self._is_half_policy if is_half is _UNSET else is_half
+            )
+            new_config = RuntimeConfig(
+                device=candidate_device,
+                is_half=candidate_precision,
+                n_cpu=self._config.n_cpu,
+                use_jit=self._config.use_jit,
+            )
+
+            if new_config == self._config:
+                self._device_spec = candidate_device
+                self._is_half_policy = candidate_precision
+                return
+
+            new_vc = VC(new_config, model_store=self._model_store)
+            old_vc = self._vc
+            self._device_spec = candidate_device
+            self._is_half_policy = candidate_precision
+            self._config = new_config
+            self._vc = new_vc
+            old_vc.close()
+
+    def convert(
+        self,
+        model_path,
+        f0_up_key=0,
+        input_path=None,
+        output_dir_path=None,
+        is_half=_UNSET,
+        f0method="rmvpe",
+        file_index="",
+        file_index2="",
+        index_rate=1,
+        filter_radius=3,
+        resample_sr=0,
+        rms_mix_rate=0.5,
+        protect=0.33,
+        verbose=False,
+        device=_UNSET,
+        output_filename="out.wav",
+    ) -> str:
+        del verbose
+        if input_path is None:
+            raise ValueError("input_path is required")
+
+        with self._lock:
+            self._ensure_open()
+            if device is not _UNSET or is_half is not _UNSET:
+                self.reconfigure(device=device, is_half=is_half)
+
+            self._vc.load_model(model_path)
+            target_sr, output_audio = self._vc.vc_single(
+                0,
+                input_path,
+                f0_up_key,
+                None,
+                f0method,
+                file_index,
+                file_index2,
+                index_rate,
+                filter_radius,
+                resample_sr,
+                rms_mix_rate,
+                protect,
+            )
+
+            output_path = resolve_output_path(output_dir_path, output_filename)
+            wavfile.write(output_path, target_sr, output_audio)
+            saved_to = os.path.abspath(output_path)
+            logger.info("Saved: %s", saved_to)
+            return saved_to
+
+    def close(self) -> None:
+        with self._lock:
+            if self._closed:
+                return
+            self._vc.close()
+            self._closed = True
+
+    def __enter__(self):
+        self._ensure_open()
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+        return False
 
 
-    change_config = False
-    change_is_half = False
-    change_forced_fp32 = False
-    
-    if device is not None:
-        if device != "cpu" and not re.match(r"^(cuda|mps|dml):\d+$", device):
-            raise ValueError(f"Invalid device format: '{device}'. Expected 'cuda:N', 'mps:N', 'dml:N' or 'cpu'")
-        
-        if device != vc.config.device:
-            vc.config.device = device
-            change_config = True
+def rvc_convert(
+    model_path,
+    f0_up_key=0,
+    input_path=None,
+    output_dir_path=None,
+    _is_half=None,
+    f0method="rmvpe",
+    file_index="",
+    file_index2="",
+    index_rate=1,
+    filter_radius=3,
+    resample_sr=0,
+    rms_mix_rate=0.5,
+    protect=0.33,
+    verbose=False,
+    device=None,
+    output_filename="out.wav",
+    models_dir=None,
+):
+    with RVCConverter(
+        device=device,
+        is_half=_is_half,
+        models_dir=models_dir,
+    ) as converter:
+        return converter.convert(
+            model_path=model_path,
+            f0_up_key=f0_up_key,
+            input_path=input_path,
+            output_dir_path=output_dir_path,
+            f0method=f0method,
+            file_index=file_index,
+            file_index2=file_index2,
+            index_rate=index_rate,
+            filter_radius=filter_radius,
+            resample_sr=resample_sr,
+            rms_mix_rate=rms_mix_rate,
+            protect=protect,
+            verbose=verbose,
+            output_filename=output_filename,
+        )
 
-    if vc.config.is_half == True and f0method.lower() == "fcpe":
-        vc.config.is_half = False
-        change_forced_fp32 = True
-    elif is_half != vc.config.is_half and f0method.lower() != "fcpe":
-        vc.config.is_half = is_half
-        change_is_half = True
-
-    change_any = change_config or change_is_half or change_forced_fp32
-
-    if last_model_path == "" or last_model_path != model_path or change_any:
-        vc.get_vc(model_path)
-        if change_config:
-            logger.info(f"Changed device to: {device}")
-        if change_is_half:
-            logger.info(f"Changed half to: {is_half}")
-        if change_forced_fp32:
-            logger.info(f"Forced half to: {vc.config.is_half}")
-        last_model_path = model_path
-        
-    tgt_sr, opt_wav =vc.vc_single(0,input_path,f0_up_key,None,f0method,file_index,file_index2,index_rate,filter_radius,resample_sr,rms_mix_rate,protect)
-
-    wavfile.write(output_file_path, tgt_sr, opt_wav)
-    saved_to = os.path.abspath(output_file_path)
-    logger.info(f"Saved: {saved_to}")
-
-    return saved_to
-
-
-def main():
-    rvc_convert(model_path="models\\DenVot.pth", input_path="out.wav")
 
 if __name__ == "__main__":
-    main()
+    rvc_convert(model_path="models\\DenVot.pth", input_path="out.wav")

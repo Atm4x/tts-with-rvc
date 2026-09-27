@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.parametrizations import weight_norm
 from torchaudio.transforms import Resample
-import os
 import librosa
 import soundfile as sf
 import torch.utils.data
@@ -18,7 +17,7 @@ from einops import rearrange, repeat
 from local_attention import LocalAttention
 from torch import nn
 
-os.environ["LRU_CACHE_CAPACITY"] = "3"
+from tts_with_rvc.runtime import resolve_device
 
 
 def load_wav_to_torch(full_path, target_sr=None, return_empty_on_exception=False):
@@ -118,14 +117,14 @@ class STFT:
         mel_basis = self.mel_basis if not train else {}
         hann_window = self.hann_window if not train else {}
 
-        mel_basis_key = str(fmax) + "_" + str(y.device)
+        mel_basis_key = (fmax, y.device.type, y.device.index)
         if mel_basis_key not in mel_basis:
             mel = librosa_mel_fn(
                 sr=sample_rate, n_fft=n_fft, n_mels=n_mels, fmin=fmin, fmax=fmax
             )
             mel_basis[mel_basis_key] = torch.from_numpy(mel).float().to(y.device)
 
-        keyshift_key = str(keyshift) + "_" + str(y.device)
+        keyshift_key = (keyshift, y.device.type, y.device.index)
         if keyshift_key not in hann_window:
             hann_window[keyshift_key] = torch.hann_window(win_size_new).to(y.device)
 
@@ -697,7 +696,7 @@ class FCPE(nn.Module):
         B, N, _ = y.size()
         ci = self.cent_table[None, None, :].expand(B, N, -1)
         confident, max_index = torch.max(y, dim=-1, keepdim=True)
-        local_argmax_index = torch.arange(0, 9).to(max_index.device) + (max_index - 4)
+        local_argmax_index = torch.arange(0, 9, device=max_index.device) + (max_index - 4)
         local_argmax_index = torch.clamp(local_argmax_index, 0, self.n_out - 1)
         ci_l = torch.gather(ci, -1, local_argmax_index)
         y_l = torch.gather(y, -1, local_argmax_index)
@@ -724,13 +723,9 @@ class FCPE(nn.Module):
 
 
 class FCPEInfer:
-    def __init__(self, model_path, device=None, dtype=torch.float32):
-        if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.device = device
-        ckpt = torch.load(
-            model_path, map_location=torch.device(self.device), weights_only=True
-        )
+    def __init__(self, model_path, device="cpu", dtype=torch.float32):
+        self.device = resolve_device(device)
+        ckpt = torch.load(model_path, map_location="cpu", weights_only=True)
         self.args = DotDict(ckpt["config"])
         self.dtype = dtype
         model = FCPE(
@@ -749,8 +744,8 @@ class FCPEInfer:
             f0_min=self.args.model.f0_min,
             confidence=self.args.model.confidence,
         )
-        model.to(self.device).to(self.dtype)
         model.load_state_dict(ckpt["model"])
+        model.to(device=self.device, dtype=self.dtype)
         model.eval()
         self.model = model
         self.wav2mel = Wav2Mel(self.args, dtype=self.dtype, device=self.device)
@@ -765,12 +760,10 @@ class FCPEInfer:
 
 
 class Wav2Mel:
-    def __init__(self, args, device=None, dtype=torch.float32):
+    def __init__(self, args, device="cpu", dtype=torch.float32):
         self.sample_rate = args.mel.sampling_rate
         self.hop_size = args.mel.hop_size
-        if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.device = device
+        self.device = resolve_device(device)
         self.dtype = dtype
         self.stft = STFT(
             args.mel.sampling_rate,
@@ -845,11 +838,11 @@ class FCPEF0Predictor(F0Predictor):
         sample_rate=44100,
         threshold=0.05,
     ):
-        self.fcpe = FCPEInfer(model_path, device=device, dtype=dtype)
+        self.device = resolve_device("cpu" if device is None else device)
+        self.fcpe = FCPEInfer(model_path, device=self.device, dtype=dtype)
         self.hop_length = hop_length
         self.f0_min = f0_min
         self.f0_max = f0_max
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.threshold = threshold
         self.sample_rate = sample_rate
         self.dtype = dtype

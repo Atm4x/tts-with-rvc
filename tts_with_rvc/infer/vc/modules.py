@@ -1,16 +1,19 @@
-import traceback
-import logging
+from __future__ import annotations
 
-logger = logging.getLogger(__name__)
+import logging
+import os
+from contextlib import nullcontext
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 import numpy as np
-import soundfile as sf
 import torch
-from io import BytesIO
-import os
+from fairseq import checkpoint_utils
+from fairseq.data.dictionary import Dictionary
 
-from huggingface_hub import hf_hub_download
-from tts_with_rvc.infer.lib.audio import load_audio, wav2
+from tts_with_rvc.assets import ModelStore
+from tts_with_rvc.infer.lib.audio import load_audio
 from tts_with_rvc.infer.lib.infer_pack.models import (
     SynthesizerTrnMs256NSFsid,
     SynthesizerTrnMs256NSFsid_nono,
@@ -18,103 +21,208 @@ from tts_with_rvc.infer.lib.infer_pack.models import (
     SynthesizerTrnMs768NSFsid_nono,
 )
 from tts_with_rvc.infer.vc.pipeline import Pipeline
+from tts_with_rvc.runtime import RuntimeConfig
 
-from fairseq import checkpoint_utils
+logger = logging.getLogger(__name__)
+
+
+@dataclass(slots=True)
+class LoadedRVCModel:
+    path: Path
+    target_sr: int
+    if_f0: int
+    version: str
+    net_g: torch.nn.Module
+    pipeline: Pipeline
+
+    def close(self) -> None:
+        self.pipeline.close()
 
 
 class VC:
-    def __init__(self, config):
-        self.n_spk = None
-        self.tgt_sr = None
-        self.net_g = None
-        self.pipeline = None
-        self.cpt = None
-        self.version = None
-        self.if_f0 = None
-        self.version = None
+    def __init__(self, config: RuntimeConfig, model_store: ModelStore | None = None) -> None:
+        self.config = config
+        self.model_store = model_store or ModelStore()
+        self._loaded: LoadedRVCModel | None = None
         self.hubert_model = None
 
-        self.config = config
+    @property
+    def is_loaded(self) -> bool:
+        return self._loaded is not None
 
-    def get_vc(self, sid):
-        logger.info("Get sid: " + sid)
+    @property
+    def net_g(self):
+        return None if self._loaded is None else self._loaded.net_g
 
-        if sid == "" or sid == []:
-            if (
-                self.hubert_model is not None
-            ):  # 考虑到轮询, 需要加个判断看是否 sid 是由有模型切换到无模型的
-                logger.info("Clean model cache")
-                del (self.net_g, self.n_spk, self.hubert_model, self.tgt_sr)  # ,cpt
-                self.hubert_model = self.net_g = self.n_spk = self.hubert_model = (
-                    self.tgt_sr
-                ) = None
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-                ###楼下不这么折腾清理不干净
-                self.if_f0 = self.cpt.get("f0", 1)
-                self.version = self.cpt.get("version", "v1")
-                if self.version == "v1":
-                    if self.if_f0 == 1:
-                        self.net_g = SynthesizerTrnMs256NSFsid(
-                            *self.cpt["config"], is_half=self.config.is_half
-                        )
-                    else:
-                        self.net_g = SynthesizerTrnMs256NSFsid_nono(*self.cpt["config"])
-                elif self.version == "v2":
-                    if self.if_f0 == 1:
-                        self.net_g = SynthesizerTrnMs768NSFsid(
-                            *self.cpt["config"], is_half=self.config.is_half
-                        )
-                    else:
-                        self.net_g = SynthesizerTrnMs768NSFsid_nono(*self.cpt["config"])
-                del self.net_g, self.cpt
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
+    @property
+    def pipeline(self):
+        return None if self._loaded is None else self._loaded.pipeline
+
+    @property
+    def tgt_sr(self):
+        return None if self._loaded is None else self._loaded.target_sr
+
+    @property
+    def version(self):
+        return None if self._loaded is None else self._loaded.version
+
+    @property
+    def if_f0(self):
+        return None if self._loaded is None else self._loaded.if_f0
+
+    @property
+    def loaded_model_path(self) -> str | None:
+        return None if self._loaded is None else str(self._loaded.path)
+
+    def load_model(self, model_path: str | os.PathLike[str]) -> None:
+        path = Path(model_path).expanduser().resolve()
+        if not path.is_file():
+            raise FileNotFoundError(f"RVC model not found: {path}")
+        if self._loaded is not None and self._loaded.path == path:
             return
-        logger.info(f"Loading: {sid}")
 
-        self.cpt = torch.load(sid, map_location="cpu")
-        self.tgt_sr = self.cpt["config"][-1]
-        self.cpt["config"][-3] = self.cpt["weight"]["emb_g.weight"].shape[0]  # n_spk
-        self.if_f0 = self.cpt.get("f0", 1)
-        self.version = self.cpt.get("version", "v1")
+        logger.info("Loading RVC model: %s", path)
+        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+        model_config = list(checkpoint["config"])
+        model_config[-3] = checkpoint["weight"]["emb_g.weight"].shape[0]
+        target_sr = int(model_config[-1])
+        if_f0 = int(checkpoint.get("f0", 1))
+        version = str(checkpoint.get("version", "v1"))
 
         synthesizer_class = {
             ("v1", 1): SynthesizerTrnMs256NSFsid,
             ("v1", 0): SynthesizerTrnMs256NSFsid_nono,
             ("v2", 1): SynthesizerTrnMs768NSFsid,
             ("v2", 0): SynthesizerTrnMs768NSFsid_nono,
-        }
+        }.get((version, if_f0))
+        if synthesizer_class is None:
+            raise ValueError(
+                f"Unsupported RVC model combination: version={version}, f0={if_f0}"
+            )
 
-        self.net_g = synthesizer_class.get(
-            (self.version, self.if_f0), SynthesizerTrnMs256NSFsid
-        )(*self.cpt["config"], is_half=self.config.is_half)
+        net_g = synthesizer_class(*model_config, is_half=self.config.is_half)
+        if hasattr(net_g, "enc_q"):
+            del net_g.enc_q
+        net_g.load_state_dict(checkpoint["weight"], strict=False)
+        del checkpoint
 
-        del self.net_g.enc_q
-
-        self.net_g.load_state_dict(self.cpt["weight"], strict=False)
-        self.net_g.eval().to(self.config.device)
-        if self.config.is_half:
-            self.net_g = self.net_g.half()
-        else:
-            self.net_g = self.net_g.float()
-
-        self.pipeline = Pipeline(self.tgt_sr, self.config)
-
-    def load_hubert(self, config, file_path="hubert_base.pt"):
-        models, _, _ = checkpoint_utils.load_model_ensemble_and_task(
-            [file_path],
-            suffix="",
+        self.unload_model(keep_hubert=True)
+        net_g.eval().to(device=self.config.device, dtype=self.config.dtype)
+        pipeline = Pipeline(target_sr, self.config, model_store=self.model_store)
+        self._loaded = LoadedRVCModel(
+            path=path,
+            target_sr=target_sr,
+            if_f0=if_f0,
+            version=version,
+            net_g=net_g,
+            pipeline=pipeline,
         )
-        hubert_model = models[0]
-        hubert_model = hubert_model.to(config.device)
-        if config.is_half:
-            hubert_model = hubert_model.half()
-            self.hubert_is_half = True
-        else:
-            hubert_model = hubert_model.float()
-            self.hubert_is_half = False
-        return hubert_model.eval()
+
+    def get_vc(self, sid) -> None:
+        if sid == "" or sid == []:
+            self.close()
+            return
+        self.load_model(sid)
+
+    def unload_model(self, *, keep_hubert: bool = True) -> None:
+        if self._loaded is not None:
+            self._loaded.close()
+            self._loaded = None
+        if not keep_hubert:
+            self.hubert_model = None
+
+    def close(self) -> None:
+        self.unload_model(keep_hubert=False)
+
+    def _load_hubert(self):
+        hubert_path = self.model_store.get(
+            "lj1995/VoiceConversionWebUI",
+            "hubert_base.pt",
+        )
+        safe_globals = getattr(torch.serialization, "safe_globals", None)
+        context = safe_globals([Dictionary]) if safe_globals is not None else nullcontext()
+        with context:
+            models, _, _ = checkpoint_utils.load_model_ensemble_and_task(
+                [str(hubert_path)],
+                suffix="",
+            )
+        hubert = models[0]
+        return hubert.to(
+            device=self.config.device,
+            dtype=self.config.dtype,
+        ).eval()
+
+    def _ensure_hubert(self):
+        if self.hubert_model is None:
+            self.hubert_model = self._load_hubert()
+        return self.hubert_model
+
+    @staticmethod
+    def _resolve_index_path(file_index: str, file_index2: str) -> str:
+        source = file_index or file_index2 or ""
+        return (
+            source.strip()
+            .strip('"')
+            .strip()
+            .replace("trained", "added")
+        )
+
+    def _require_model(self) -> LoadedRVCModel:
+        if self._loaded is None:
+            raise RuntimeError("No RVC model is loaded")
+        return self._loaded
+
+    def _convert_audio(
+        self,
+        *,
+        sid: int,
+        audio: np.ndarray,
+        f0_up_key: int,
+        f0_file: Any,
+        f0_method: str,
+        file_index: str,
+        file_index2: str,
+        index_rate: float,
+        filter_radius: int,
+        resample_sr: int,
+        rms_mix_rate: float,
+        protect: float,
+    ):
+        loaded = self._require_model()
+        audio = np.asarray(audio, dtype=np.float32)
+        audio_max = (float(np.max(np.abs(audio))) if audio.size else 0.0) / 0.95
+        if audio_max > 1:
+            audio = audio / audio_max
+
+        times = [0.0, 0.0, 0.0]
+        index_path = self._resolve_index_path(file_index, file_index2)
+        hubert = self._ensure_hubert()
+
+        audio_opt = loaded.pipeline.pipeline(
+            hubert,
+            loaded.net_g,
+            sid,
+            audio,
+            times,
+            int(f0_up_key),
+            f0_method,
+            index_path,
+            index_rate,
+            loaded.if_f0,
+            filter_radius,
+            loaded.target_sr,
+            resample_sr,
+            rms_mix_rate,
+            loaded.version,
+            protect,
+            f0_file,
+        )
+        target_sr = (
+            resample_sr
+            if loaded.target_sr != resample_sr >= 16000
+            else loaded.target_sr
+        )
+        return target_sr, audio_opt
 
     def vc_single(
         self,
@@ -132,75 +240,27 @@ class VC:
         protect,
     ):
         if input_audio_path is None:
-            return "You need to upload an audio", None
-        f0_up_key = int(f0_up_key)
-        try:
-            audio = load_audio(input_audio_path, 16000)
-            audio_max = np.abs(audio).max() / 0.95
-            if audio_max > 1:
-                audio /= audio_max
-            times = [0, 0, 0]
-
-            if self.hubert_model is None or self.config.is_half != self.hubert_is_half:
-                hubert_name = "hubert_base.pt"
-                if not os.path.exists(os.path.join(os.getcwd(), hubert_name)):
-                    hf_hub_download(repo_id="lj1995/VoiceConversionWebUI", filename=hubert_name, local_dir=os.getcwd(), token=False)
-                self.hubert_model = self.load_hubert(self.config, hubert_name)
-
-            if file_index:
-                file_index = (
-                    file_index.strip(" ")
-                    .strip('"')
-                    .strip("\n")
-                    .strip('"')
-                    .strip(" ")
-                    .replace("trained", "added")
-                )
-            elif file_index2:
-                file_index = file_index2
-            else:
-                file_index = ""  # 防止小白写错，自动帮他替换掉
-
-            audio_opt = self.pipeline.pipeline(
-                self.hubert_model,
-                self.net_g,
-                sid,
-                audio,
-                input_audio_path,
-                times,
-                f0_up_key,
-                f0_method,
-                file_index,
-                index_rate,
-                self.if_f0,
-                filter_radius,
-                self.tgt_sr,
-                resample_sr,
-                rms_mix_rate,
-                self.version,
-                protect,
-                f0_file,
-            )
-            if self.tgt_sr != resample_sr >= 16000:
-                tgt_sr = resample_sr
-            else:
-                tgt_sr = self.tgt_sr
-            index_info = (
-                "Index:\n%s." % file_index
-                if os.path.exists(file_index)
-                else "Index not used."
-            )
-            # print("Success.\n%s\nTime:\nnpy: %.2fs, f0: %.2fs, infer: %.2fs." % (index_info, *times))
-            return tgt_sr, audio_opt
-        except:
-            info = traceback.format_exc()
-            logger.warning(info)
-            return info, (None, None)
+            raise ValueError("input_audio_path is required")
+        audio = load_audio(input_audio_path, 16000)
+        return self._convert_audio(
+            sid=sid,
+            audio=audio,
+            f0_up_key=f0_up_key,
+            f0_file=f0_file,
+            f0_method=f0_method,
+            file_index=file_index,
+            file_index2=file_index2,
+            index_rate=index_rate,
+            filter_radius=filter_radius,
+            resample_sr=resample_sr,
+            rms_mix_rate=rms_mix_rate,
+            protect=protect,
+        )
 
     def vc_stream(
         self,
         sid,
-        audio,  # This accepts audio data directly, not a path
+        audio,
         f0_up_key,
         f0_file,
         f0_method,
@@ -212,71 +272,17 @@ class VC:
         rms_mix_rate,
         protect,
     ):
-        """
-        Voice conversion for streaming audio data.
-        Similar to vc_single but takes audio data directly instead of loading from a path.
-        """
-        f0_up_key = int(f0_up_key)
-        try:
-            # No need to load audio from disk, it's already provided
-            audio_max = np.abs(audio).max() / 0.95
-            if audio_max > 1:
-                audio /= audio_max
-            times = [0, 0, 0]
-
-            if self.hubert_model is None:
-                hubert_name = "hubert_base.pt"
-                if not os.path.exists(os.path.join(os.getcwd(), hubert_name)):
-                    hf_hub_download(repo_id="lj1995/VoiceConversionWebUI", filename=hubert_name, local_dir=os.getcwd(), token=False)
-                self.hubert_model = self.load_hubert(self.config, hubert_name)
-
-            if file_index:
-                file_index = (
-                    file_index.strip(" ")
-                    .strip('"')
-                    .strip("\n")
-                    .strip('"')
-                    .strip(" ")
-                    .replace("trained", "added")
-                )
-            elif file_index2:
-                file_index = file_index2
-            else:
-                file_index = ""
-
-            # For streaming, we pass None as input_audio_path since we don't have a file path
-            audio_opt = self.pipeline.pipeline(
-                self.hubert_model,
-                self.net_g,
-                sid,
-                audio,
-                None,  # input_audio_path is None for streaming
-                times,
-                f0_up_key,
-                f0_method,
-                file_index,
-                index_rate,
-                self.if_f0,
-                filter_radius,
-                self.tgt_sr,
-                resample_sr,
-                rms_mix_rate,
-                self.version,
-                protect,
-                f0_file,
-            )
-            if self.tgt_sr != resample_sr >= 16000:
-                tgt_sr = resample_sr
-            else:
-                tgt_sr = self.tgt_sr
-            index_info = (
-                "Index:\n%s." % file_index
-                if os.path.exists(file_index)
-                else "Index not used."
-            )
-            return tgt_sr, audio_opt
-        except:
-            info = traceback.format_exc()
-            logger.warning(info)
-            return info, (None, None)
-    
+        return self._convert_audio(
+            sid=sid,
+            audio=audio,
+            f0_up_key=f0_up_key,
+            f0_file=f0_file,
+            f0_method=f0_method,
+            file_index=file_index,
+            file_index2=file_index2,
+            index_rate=index_rate,
+            filter_radius=filter_radius,
+            resample_sr=resample_sr,
+            rms_mix_rate=rms_mix_rate,
+            protect=protect,
+        )

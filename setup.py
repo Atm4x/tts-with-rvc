@@ -3,7 +3,6 @@ from setuptools import setup, find_packages
 install_requires = [
     "huggingface_hub",
     "av",
-    "nest_asyncio",
     "torch",
     "edge-tts",
     "numpy==1.26.0",

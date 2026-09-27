@@ -454,7 +454,7 @@ class Flip(nn.Module):
             logdet = torch.zeros(x.size(0)).to(dtype=x.dtype, device=x.device)
             return x, logdet
         else:
-            return x, torch.zeros([1], device=x.device)
+            return x, torch.zeros([1], device=x.device, dtype=x.dtype)
 
 
 class ElementwiseAffine(nn.Module):
@@ -535,7 +535,7 @@ class ResidualCouplingLayer(nn.Module):
         else:
             x1 = (x1 - m) * torch.exp(-logs) * x_mask
             x = torch.cat([x0, x1], 1)
-            return x, torch.zeros([1])
+            return x, torch.zeros([1], device=x.device, dtype=x.dtype)
 
     def remove_weight_norm(self):
         self.enc.remove_weight_norm()

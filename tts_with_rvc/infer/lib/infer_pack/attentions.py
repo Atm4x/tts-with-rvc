@@ -142,8 +142,10 @@ class Decoder(nn.Module):
         x: decoder input
         h: encoder output
         """
-        self_attn_mask = commons.subsequent_mask(x_mask.size(2)).to(
-            device=x.device, dtype=x.dtype
+        self_attn_mask = commons.subsequent_mask(
+            x_mask.size(2),
+            device=x.device,
+            dtype=x.dtype,
         )
         encdec_attn_mask = h_mask.unsqueeze(2) * x_mask.unsqueeze(-1)
         x = x * x_mask
@@ -256,8 +258,10 @@ class MultiHeadAttention(nn.Module):
             scores = scores + scores_local
         if self.proximal_bias:
             assert t_s == t_t, "Proximal bias is only available for self-attention."
-            scores = scores + self._attention_bias_proximal(t_s).to(
-                device=scores.device, dtype=scores.dtype
+            scores = scores + self._attention_bias_proximal(
+                t_s,
+                device=scores.device,
+                dtype=scores.dtype,
             )
         if mask is not None:
             scores = scores.masked_fill(mask == 0, -1e4)
@@ -373,14 +377,14 @@ class MultiHeadAttention(nn.Module):
         x_final = x_flat.view([batch, heads, length, 2 * length])[:, :, :, 1:]
         return x_final
 
-    def _attention_bias_proximal(self, length: int):
+    def _attention_bias_proximal(self, length: int, *, device=None, dtype=None):
         """Bias for self-attention to encourage attention to close positions.
         Args:
           length: an integer scalar.
         Returns:
           a Tensor with shape [1, 1, length, length]
         """
-        r = torch.arange(length, dtype=torch.float32)
+        r = torch.arange(length, device=device, dtype=dtype or torch.float32)
         diff = torch.unsqueeze(r, 0) - torch.unsqueeze(r, 1)
         return torch.unsqueeze(torch.unsqueeze(-torch.log1p(torch.abs(diff)), 0), 0)
 

@@ -5,17 +5,8 @@ import numpy as np
 import torch
 
 from tts_with_rvc.infer.lib import jit
+from tts_with_rvc.runtime import device_type, resolve_device, resolve_dtype
 
-try:
-    # Fix "Torch not compiled with CUDA enabled"
-    import intel_extension_for_pytorch as ipex  # pylint: disable=import-error, unused-import
-
-    if torch.xpu.is_available():
-        from tts_with_rvc.infer.modules.ipex import ipex_init
-
-        ipex_init()
-except Exception:  # pylint: disable=broad-exception-caught
-    pass
 import torch.nn as nn
 import torch.nn.functional as F
 from librosa.util import normalize, pad_center, tiny
@@ -454,12 +445,12 @@ class MelSpectrogram(torch.nn.Module):
         n_fft_new = int(np.round(self.n_fft * factor))
         win_length_new = int(np.round(self.win_length * factor))
         hop_length_new = int(np.round(self.hop_length * speed))
-        keyshift_key = str(keyshift) + "_" + str(audio.device)
+        keyshift_key = (keyshift, audio.device.type, audio.device.index)
         if keyshift_key not in self.hann_window:
             self.hann_window[keyshift_key] = torch.hann_window(win_length_new).to(
                 audio.device
             )
-        if "privateuseone" in str(audio.device):
+        if audio.device.type == "privateuseone":
             if not hasattr(self, "stft"):
                 self.stft = STFT(
                     filter_length=n_fft_new,
@@ -493,78 +484,75 @@ class MelSpectrogram(torch.nn.Module):
 
 
 class RMVPE:
-    def __init__(self, model_path: str, is_half, device=None, use_jit=False):
+    def __init__(self, model_path: str, is_half: bool, device="cpu", use_jit=False):
         self.resample_kernel = {}
-        self.resample_kernel = {}
-        self.is_half = is_half
-        if device is None:
-            device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        self.device = device
+        self.device = resolve_device(device)
+        self.dtype = resolve_dtype(self.device, bool(is_half))
+        self.is_half = self.dtype == torch.float16
         self.mel_extractor = MelSpectrogram(
-            is_half, 128, 16000, 1024, 160, None, 30, 8000
-        ).to(device)
-        if "privateuseone" in str(device):
+            self.is_half, 128, 16000, 1024, 160, None, 30, 8000
+        ).to(self.device)
+
+        if device_type(self.device) == "privateuseone":
             import onnxruntime as ort
 
-            ort_session = ort.InferenceSession(
-                "%s/rmvpe.onnx" % os.environ["rmvpe_root"],
+            rmvpe_root = os.environ.get("rmvpe_root")
+            if not rmvpe_root:
+                raise RuntimeError(
+                    "DirectML RMVPE requires the 'rmvpe_root' environment variable"
+                )
+            onnx_path = os.path.join(rmvpe_root, "rmvpe.onnx")
+            self.model = ort.InferenceSession(
+                onnx_path,
                 providers=["DmlExecutionProvider"],
             )
-            self.model = ort_session
         else:
-            if str(self.device) == "cuda":
-                self.device = torch.device("cuda:0")
-
             def get_jit_model():
-                jit_model_path = model_path.rstrip(".pth")
-                jit_model_path += ".half.jit" if is_half else ".jit"
-                reload = False
+                base, _ = os.path.splitext(model_path)
+                jit_model_path = base + (".half.jit" if self.is_half else ".jit")
+                reload_model = True
                 if os.path.exists(jit_model_path):
                     ckpt = jit.load(jit_model_path)
-                    model_device = ckpt["device"]
-                    if model_device != str(self.device):
-                        reload = True
-                else:
-                    reload = True
+                    reload_model = torch.device(ckpt["device"]) != self.device
 
-                if reload:
+                if reload_model:
                     ckpt = jit.rmvpe_jit_export(
                         model_path=model_path,
                         mode="script",
                         inputs_path=None,
                         save_path=jit_model_path,
-                        device=device,
-                        is_half=is_half,
+                        device=self.device,
+                        is_half=self.is_half,
                     )
-                model = torch.jit.load(BytesIO(ckpt["model"]), map_location=device)
+                model = torch.jit.load(
+                    BytesIO(ckpt["model"]),
+                    map_location=self.device,
+                )
                 return model
 
             def get_default_model():
                 model = E2E(4, 1, (2, 2))
-                ckpt = torch.load(model_path, map_location="cpu")
+                ckpt = torch.load(model_path, map_location="cpu", weights_only=True)
                 model.load_state_dict(ckpt)
                 model.eval()
-                if is_half:
-                    model = model.half()
-                else:
-                    model = model.float()
-                return model
+                return model.half() if self.is_half else model.float()
 
-            if use_jit:
-                if is_half and "cpu" in str(self.device):
-                    logger.warning(
-                        "Use default rmvpe model. \
-                                 Jit is not supported on the CPU for half floating point"
-                    )
-                    self.model = get_default_model()
-                else:
-                    self.model = get_jit_model()
+            if use_jit and not (
+                self.is_half and device_type(self.device) == "cpu"
+            ):
+                self.model = get_jit_model()
             else:
+                if use_jit and self.is_half:
+                    logger.warning(
+                        "JIT RMVPE half precision is unsupported on CPU; "
+                        "using the eager model"
+                    )
                 self.model = get_default_model()
 
-            self.model = self.model.to(device)
+            self.model = self.model.to(self.device)
+
         cents_mapping = 20 * np.arange(360) + 1997.3794084376191
-        self.cents_mapping = np.pad(cents_mapping, (4, 4))  # 368
+        self.cents_mapping = np.pad(cents_mapping, (4, 4))
 
     def mel2hidden(self, mel):
         with torch.no_grad():
@@ -572,12 +560,13 @@ class RMVPE:
             n_pad = 32 * ((n_frames - 1) // 32 + 1) - n_frames
             if n_pad > 0:
                 mel = F.pad(mel, (0, n_pad), mode="constant")
-            if "privateuseone" in str(self.device):
-                onnx_input_name = self.model.get_inputs()[0].name
-                onnx_outputs_names = self.model.get_outputs()[0].name
+
+            if device_type(self.device) == "privateuseone":
+                input_name = self.model.get_inputs()[0].name
+                output_name = self.model.get_outputs()[0].name
                 hidden = self.model.run(
-                    [onnx_outputs_names],
-                    input_feed={onnx_input_name: mel.cpu().numpy()},
+                    [output_name],
+                    input_feed={input_name: mel.cpu().numpy()},
                 )[0]
             else:
                 mel = mel.half() if self.is_half else mel.float()
@@ -588,36 +577,27 @@ class RMVPE:
         cents_pred = self.to_local_average_cents(hidden, thred=thred)
         f0 = 10 * (2 ** (cents_pred / 1200))
         f0[f0 == 10] = 0
-        # f0 = np.array([10 * (2 ** (cent_pred / 1200)) if cent_pred else 0 for cent_pred in cents_pred])
         return f0
 
     def infer_from_audio(self, audio, thred=0.03):
-        # torch.cuda.synchronize()
-        # t0 = ttime()
         if not torch.is_tensor(audio):
             audio = torch.from_numpy(audio)
+
         mel = self.mel_extractor(
-            audio.float().to(self.device).unsqueeze(0), center=True
+            audio.float().to(self.device).unsqueeze(0),
+            center=True,
         )
-        # print(123123123,mel.device.type)
-        # torch.cuda.synchronize()
-        # t1 = ttime()
         hidden = self.mel2hidden(mel)
-        # torch.cuda.synchronize()
-        # t2 = ttime()
-        # print(234234,hidden.device.type)
-        if "privateuseone" not in str(self.device):
-            hidden = hidden.squeeze(0).cpu().numpy()
-        else:
+
+        if device_type(self.device) == "privateuseone":
             hidden = hidden[0]
-        if self.is_half == True:
+        else:
+            hidden = hidden.squeeze(0).cpu().numpy()
+
+        if self.is_half:
             hidden = hidden.astype("float32")
 
-        f0 = self.decode(hidden, thred=thred)
-        # torch.cuda.synchronize()
-        # t3 = ttime()
-        # print("hmvpe:%s\t%s\t%s\t%s"%(t1-t0,t2-t1,t3-t2,t3-t0))
-        return f0
+        return self.decode(hidden, thred=thred)
 
     def to_local_average_cents(self, salience, thred=0.05):
         # t0 = ttime()

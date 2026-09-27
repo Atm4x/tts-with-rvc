@@ -27,7 +27,6 @@ install_requires = [
     "soundfile>=0.12.1",
     "ffmpeg-python>=0.2.0",
     "huggingface_hub>=0.17.0",
-    "nest_asyncio>=1.5.0",
     "pyworld>=0.3.2",
     "setuptools",
     "onnxruntime>=1.15,<2.0",

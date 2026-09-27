@@ -40,6 +40,16 @@ class CudaDeviceTests(unittest.TestCase):
         )
         self.assertLess(validation.lineno, helper_call.lineno)
 
+        conversion_calls = {
+            node.func.attr: node.lineno
+            for node in ast.walk(convert)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in {"get_vc", "vc_single"}
+        }
+        self.assertLess(helper_call.lineno, conversion_calls["get_vc"])
+        self.assertLess(helper_call.lineno, conversion_calls["vc_single"])
+
     def test_selects_requested_cuda_device(self):
         selected = SimpleNamespace(type="cuda", index=1)
         torch_module = SimpleNamespace(

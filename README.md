@@ -1,114 +1,204 @@
-# TTS-with-RVC-ONNX 0.1.10
+# **TTS-with-RVC-ONNX** 0.1.10
 
-Generate speech with Edge TTS and convert it to a selected voice using an ONNX
-RVC model. Inference supports CPU, NVIDIA CUDA and Windows DirectML providers.
+***TTS-with-RVC-ONNX** (Text-to-Speech with RVC using ONNX)* is a package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing an *RVC* module running on the ONNX Runtime. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support, optimized for various hardware backends (DirectML, CUDA, CPU).
 
-For PyTorch `.pth` models, use [TTS-with-RVC](https://github.com/Atm4x/tts-with-rvc/tree/releases).
-Both distributions use the `tts_with_rvc` import name; install them in separate
-Python environments.
+ONNX Runtime is used for RVC inference, potentially leveraging hardware acceleration (DirectML on Windows/AMD, CUDA on NVIDIA). PyTorch is also required for audio processing; RMVPE itself uses its ONNX model.
+
+**It may contain bugs. Report an issue in case of error.**
 
 ## Release notes
 
-### 0.1.10 — September 30, 2026
+**0.1.10** - September 30, 2026: Added MultiGPU support: run independent instances on different GPUs in the same process. Explicit CUDA/DirectML adapter selection, separate ONNX sessions and predictor caches per instance, async usage with `async_call()`, safe device switching, and resource cleanup with `close()` / context managers.
 
-- **MultiGPU support:** create independent instances for `cuda:0`, `cuda:1`,
-  `dml:0`, `dml:1` and other available adapters in the same process.
-- The RVC, ContentVec and ONNX RMVPE sessions receive the selected provider and
-  adapter ID. Unavailable providers and activation failures raise explicit errors.
-- Each converter owns its sessions, predictor cache and random generator.
-- Device changes build a new backend before closing the old one; failed changes
-  preserve the working backend. Model and sampling settings have dedicated setters.
-- Added `async_call()`, `close()` and context-manager support, with request-state
-  snapshots and temporary audio cleanup after conversion.
-- Added `models_dir`, configurable `vec_path` and per-instance `random_seed`.
-- Imports are lazy; asyncio and parent logger configuration are left to the host.
-- Migrated packaging to `pyproject.toml` and added CI and release workflows.
+**0.1.9** - April 10, 2025: Current ONNX Branch Sync
+*   Synced RVC parameters with main branch 0.1.9 (`rms_mix_rate`, `protect`, `filter_radius`, `resample_sr`, `file_index2`, `verbose`).
+*   Added support for F0 predictors: `rmvpe` (using ONNX), `pm`, `dio`, `harvest`.
+*   Fixed F0 length mismatch issue and implemented correct audio padding.
+*   Added `set_device` method to switch ONNX Runtime providers.
+*   Updated dependencies and ONNX Runtime selection.
 
-### Earlier releases
+*(Based on main branch 0.1.9)*
 
-- **0.1.9.4 — September 17, 2025:** constrained CFFI to a compatible version.
-- **September 3, 2025:** dependency adjustment for NumPy compatibility on AMD setups.
-- **0.1.9 — April 10, 2025:** synchronized RVC controls, ONNX RMVPE support,
-  pitch-padding fixes and runtime device switching.
-- **0.1.6:** initial ONNX support.
+**0.1.6** - Initial ONNX support.
 
-## Requirements and installation
+## Prerequisites
 
-- Python 3.10, 3.11 or 3.12.
-- An ONNX RVC voice model (`.onnx`) and optionally a compatible Faiss `.index`.
-- FFmpeg accessible through `PATH`.
-- For GPU inference, drivers and an ONNX Runtime build exposing the requested provider.
-- Network access for Edge TTS and missing auxiliary model downloads.
+You must have **Python 3.10, 3.11 or 3.12** installed.
+You must have **ONNX Runtime** compatible hardware/drivers if using GPU acceleration (DirectML for AMD on Windows, CUDA for NVIDIA). The CPU provider works generally.
+*   **PyTorch** is a package dependency used for audio processing.
+*   **FFmpeg** must be installed and accessible in your system's PATH or placed in the script's directory. Download from [ffmpeg.org](https://ffmpeg.org/download.html).
 
-Choose an installation for your backend:
+## **Installation**
 
-```bash
-pip install tts-with-rvc-onnx
-```
+1.  Install the package using pip:
+    CPU Version:
+    ```bash
+    pip install tts-with-rvc-onnx
+    ```
 
-```bash
-pip install "tts-with-rvc-onnx[cuda]"
-```
+    CUDA version:
+    ```bash
+    pip install tts-with-rvc-onnx[cuda]
+    ```
 
-```bash
-pip install "tts-with-rvc-onnx[dml]"
-```
+    DML version (recommended for AMD):
+    ```bash
+    pip install tts-with-rvc-onnx[dml]
+    ```
 
-Use a separate environment for each runtime setup. Check the available providers:
+2.  Ensure **FFmpeg** is installed and accessible (see Prerequisites).
 
-```python
-import onnxruntime as ort
-print(ort.get_available_providers())
-```
+## How it Works
 
-CUDA requires `CUDAExecutionProvider`; DirectML requires `DmlExecutionProvider`.
-PyTorch is also a declared dependency and is used in audio processing even when
-voice conversion and RMVPE run through ONNX.
+1.  **Text-to-Speech (TTS):** Uses `edge-tts` to convert input text into speech, saved as a temporary audio file in the `tmp_directory`.
+2.  **RVC (ONNX):** With the `.onnx` file provided, the RVC module (via ONNX Runtime) reads the temporary audio file, processes it (feature extraction, F0, conversion, index lookup), and generates a new audio file saved in `output_directory` with the voice replaced.
 
-To install the current release branch before its PyPI publication:
+## Usage
 
-```bash
-pip install "git+https://github.com/Atm4x/tts-with-rvc.git@releases-onnx"
-```
+TTS-with-RVC-ONNX has a class called `TTS_RVC`.
 
-For local development, run `pip install -e .` from the repository root.
+**Constructor Parameters:**
 
-## Basic usage
+*   `model_path` (str): **Required.** Path to your `.onnx` RVC model file.
+
+*And optional parameters:*
+
+*   `voice` (str): Voice from `edge-tts` list (default: `"ru-RU-DmitryNeural"`).
+
+*   `device` (str): ONNX Runtime provider (`"dml"`, `"cuda:0"`, `"cpu"`, etc.). Defaults to `"dml"`.
+
+*   `tmp_directory` (str): Path to directory for temporary TTS files (default: `tts_with_rvc_onnx` in the system temp folder).
+
+*   `output_directory` (str): Directory for saving final voiced audio (default: `tts_with_rvc_onnx/output` in the system temp folder).
+
+*   `index_path` (str): Path to the Faiss `.index` file for voice adjustments (default: `""`).
+
+*   `f0_method` (str): Method for calculating pitch. Available: `'rmvpe'`, `'pm'`, `'harvest'`, `'dio'`. Defaults to `"pm"`.
+
+*   `sampling_rate` (int): Target sample rate of the RVC model (default: `40000`).
+
+*   `hop_size` (int): Hop size of the RVC model (default: `512`).
+
+*Deprecated:*
+
+*   `input_directory`: Use `tmp_directory` instead.
+
+**Initialization Example:**
 
 ```python
 from tts_with_rvc import TTS_RVC
 
-with TTS_RVC(
-    model_path="models/voice.onnx",
-    device="cpu",
-    voice="ru-RU-DmitryNeural",
-    output_directory="output",
-) as tts:
-    output_path = tts(text="Hello, world!", pitch=0)
-    print(output_path)
+tts = TTS_RVC(model_path="models/YourModel.onnx",
+                index_path="logs/YourIndex.index",
+                f0_method="rmvpe",
+                device="dml") # Or "cuda:0", "cpu"
 ```
 
-For NVIDIA GPUs, select `device="cuda:0"`. For DirectML, select `device="dml:0"`.
-Pass `index_path="models/voice.index"` to enable index blending.
-The result is the path to the converted audio file.
+Both the ONNX and PyTorch distributions use the `tts_with_rvc` import name. Install them in separate environments.
 
-## MultiGPU and adapter selection
+Next, set the voice for TTS with `tts.set_voice()` function:
 
-Each instance uses one adapter. Create a separate instance per GPU and schedule
-requests in your application:
+```python
+tts.set_voice("ru-RU-DmitryNeural")
+```
+
+Setting the appropriate language is necessary if you are using other languages for voiceovers!
+
+And final step is calling `tts` (the `__call__` method) to generate and replace voice:
+
+```python
+path = tts(text="Привет, мир!", pitch=6, index_rate=0.50)
+```
+
+**`__call__` Parameters:**
+
+*   `text` (str): **Required.** Text for TTS.
+
+*   `pitch` (int, optional): Pitch change (transpose) for RVC in semitones. Negative values compatible. Default: `0`.
+
+*   `tts_rate` (int, optional): Extra rate of speech for Edge TTS in percentage (+/-). Default: `0`.
+
+*   `tts_volume` (int, optional): Extra volume of speech for Edge TTS in percentage (+/-). Default: `0`.
+
+*   `tts_pitch` (int, optional): Extra pitch of TTS-generated audio in Hz (+/-). **Not recommended**. Default: `0`.
+
+*   `output_filename` (str, optional): Name for the output file. If `None`, a unique name is generated. Default: `None`.
+
+*   `index_rate` (float, optional): Blending rate between original and indexed voice conversion (0 to 1). Default: `0.75`.
+
+*   `f0method` (str, optional): F0 extraction method for this specific call, overrides the instance default: `'rmvpe'`, `'pm'`, `'harvest'`, `'dio'`. Default uses instance setting.
+
+*   `file_index2` (str, optional): Path to secondary index file for RVC. Default: `""`.
+
+*   `filter_radius` (int, optional): Median filter radius for pitch results. Values `>=3` reduce breathiness. Default: `3`.
+
+*   `resample_sr` (int, optional): Sample rate to resample final audio to. `0` means use model's sample rate. Default: `0`.
+
+*   `rms_mix_rate` (float, optional): Volume envelope scaling (0-1). Lower values mimic original volume more closely. Default: `0.5`.
+
+*   `protect` (float, optional): Protection for voiceless consonants and breaths (0-0.5). Lower values increase protection. `0.5` disables. Default: `0.33`.
+
+*   `verbose` (bool, optional): Enable verbose logging for RVC conversion. Default: `False`.
+
+*(Note: `is_half` parameter is removed as precision is handled by ONNX Runtime.)*
+
+## Example of usage
+
+A simple example for voicing text:
+
+```python
+import os
+from tts_with_rvc import TTS_RVC
+# from playsound import playsound # Optional
+
+# --- Configuration ---
+model_file = "models/DenVot.onnx"
+index_file = "logs/added_IVF1749_Flat_nprobe_1.index" # Optional
+temp_dir = "audio_temp"
+output_dir = "audio_output"
+
+os.makedirs(temp_dir, exist_ok=True)
+os.makedirs(output_dir, exist_ok=True)
+
+# --- Initialize ---
+try:
+    tts = TTS_RVC(
+        model_path=model_file,
+        index_path=index_file,
+        tmp_directory=temp_dir,
+        output_directory=output_dir,
+        device="dml", # Or 'cuda:0', 'cpu'
+        f0_method="rmvpe"
+    )
+
+    tts.set_voice("ru-RU-DmitryNeural")
+
+    # --- Generate ---
+    path = tts(text="Привет, мир!", pitch=6, index_rate=0.9)
+    print(f"Audio saved to: {path}")
+
+    # --- Play (Optional) ---
+    # playsound(path)
+
+except Exception as e:
+    print(f"An error occurred: {e}")
+
+```
+
+## New usage (0.1.10)
+
+### MultiGPU
+
+Create one instance per GPU. Each instance owns its model state; distribute requests between them in your application.
 
 ```python
 from concurrent.futures import ThreadPoolExecutor
 from tts_with_rvc import TTS_RVC
 
 with TTS_RVC(
-    model_path="models/voice.onnx",
-    device="cuda:0",
-    output_directory="output/gpu0",
+    model_path="models/voice.onnx", device="cuda:0", output_directory="output/gpu0",
 ) as first, TTS_RVC(
-    model_path="models/voice.onnx",
-    device="cuda:1",
-    output_directory="output/gpu1",
+    model_path="models/voice.onnx", device="cuda:1", output_directory="output/gpu1",
 ) as second:
     with ThreadPoolExecutor(max_workers=2) as pool:
         jobs = [
@@ -119,13 +209,9 @@ with TTS_RVC(
         print(output_paths)
 ```
 
-For DirectML adapters, use `dml:0` and `dml:1` with the DirectML runtime.
-A bare `"cuda"` or `"dml"` selects adapter zero. Device IDs are interpreted by
-the selected provider. Each adapter needs memory for its own model sessions.
-An individual converter locks conversion operations; use separate instances
-to process independent requests in parallel.
+For DirectML, use `dml:0` and `dml:1` with a DirectML-enabled ONNX Runtime. A bare `cuda` selects GPU zero. Use separate instances for parallel conversion; each converter serializes its own conversion calls.
 
-## Async usage
+### Async applications
 
 ```python
 import asyncio
@@ -133,105 +219,96 @@ from tts_with_rvc import TTS_RVC
 
 async def main():
     with TTS_RVC(model_path="models/voice.onnx", device="cpu") as tts:
-        output_path = await tts.async_call("Hello from an async application.")
-        print(output_path)
+        path = await tts.async_call("Hello, world!")
+        print(path)
 
 asyncio.run(main())
 ```
 
-## Constructor options
+### Changing settings and releasing resources
 
-| Option | Default | Purpose |
-|---|---|---|
-| `model_path` | required | ONNX RVC model |
-| `device` | `"dml"` | `"cpu"`, `"cuda:N"` or `"dml:N"` |
-| `voice` | `"ru-RU-DmitryNeural"` | Edge TTS voice |
-| `index_path` | `""` | Optional Faiss index |
-| `f0_method` | `"pm"` | `pm`, `harvest`, `dio` or `rmvpe` |
-| `sampling_rate` | `40000` | RVC model sample rate |
-| `hop_size` | `512` | RVC model hop size |
-| `vec_path` | `"vec-768-layer-12.onnx"` | ContentVec model path/name |
-| `models_dir` | `None` | Directory for auxiliary models |
-| `random_seed` | `None` | Seed for the instance's noise generator |
-| `tmp_directory` | `None` | Defaults to `tts_with_rvc_onnx` under system temp |
-| `output_directory` | `None` | Defaults to `tts_with_rvc_onnx/output` under system temp |
+`tts.set_model(path)` changes the RVC voice model. Use `tts.set_device("cuda:1")` to change the device.
+You can direct auxiliary model downloads to `models_dir` in the constructor.
+A `with` block closes the instance automatically; otherwise call `tts.close()` when finished.
 
-`input_directory` is deprecated; use `tmp_directory`.
-Choose the sample rate and hop size that match your exported RVC model.
-Precision follows the exported ONNX model and runtime.
+## Text parameters
 
-Missing ContentVec and RMVPE models are resolved from local paths,
-`models_dir`, or Hugging Face. RMVPE is loaded when selected as the F0 method.
+There are some text parameters processor for integration issues such as adding GPT module.
 
-## Conversion controls
+You can process them using `process_args` in `TTS_RVC` class:
 
-`tts(text, ...)` and `await tts.async_call(text, ...)` accept:
+*   `--tts-rate (value)`: TTS parameter to edit the speech rate.
 
-| Option | Default | Purpose |
-|---|---|---|
-| `pitch` | `0` | RVC pitch shift in semitones |
-| `tts_rate`, `tts_volume`, `tts_pitch` | `0` | Edge TTS rate/volume percentages and pitch in Hz |
-| `output_filename` | `None` | Output name; a unique name is generated by default |
-| `index_rate` | `0.75` | Index blending strength |
-| `f0method` | `None` | Override F0 method for this call |
-| `file_index2` | `""` | Secondary index path |
-| `filter_radius` | `3` | Pitch median-filter control |
-| `resample_sr` | `0` | Output resampling; zero retains the model rate |
-| `rms_mix_rate` | `0.5` | Output volume-envelope blending |
-| `protect` | `0.33` | Unvoiced-consonant protection; `0.5` disables protection |
-| `verbose` | `False` | Conversion logging |
+*   `--tts-volume (value)`: TTS parameter to edit the speech volume. **May have limited effect due to RVC volume normalization.**
 
-## Runtime and model changes
+*   `--tts-pitch (value)`: TTS parameter to edit the pitch of TTS generated audio. **Not recommended.**
 
-- `tts.set_device("cuda:1")` changes the selected adapter.
-- `tts.set_model(path)` loads a new ONNX RVC model.
-- `tts.set_sampling_params(sr, hop)` updates model sampling settings.
-- `tts.set_voice(voice)` changes the Edge TTS voice.
-- `tts.set_index_path(path)` changes the index.
-- `tts.set_output_directory(path)` changes the output directory.
-- `tts.close()` releases sessions and predictor resources; `with` closes automatically.
+*   `--rvc-pitch (value)`: RVC parameter to edit the pitch of the output audio (semitones).
 
-To convert existing audio without Edge TTS:
+Now the principle of work:
 
 ```python
 from tts_with_rvc import TTS_RVC
 
-with TTS_RVC(model_path="models/voice.onnx", device="cpu") as tts:
-    output_path = tts.voiceover_file("input.wav", output_filename="converted.wav")
+tts = TTS_RVC(model_path="models/YourModel.onnx", device="dml", tmp_directory="temp/")
+
+message_with_args = "This is a test --rvc-pitch -2 and slower --tts-rate -10"
+
+# This method returns arguments and original text without these text parameters
+args, clean_message = tts.process_args(message_with_args)
+# args = [-10, 0, 0, -2] # [tts_rate, tts_volume, tts_pitch, rvc_pitch]
+# clean_message = "This is a test and slower"
+
+# Use extracted arguments for generation:
+path = tts(clean_message, tts_rate=args[0],
+                        tts_volume=args[1],
+                        tts_pitch=args[2],
+                        pitch=args[3])
 ```
 
-`OnnxRVCConverter` is also exported for lower-level integrations.
+The `args` variable contains a list with the following structure:
 
-## Text parameters
+`args[0]` - TTS Rate
 
-`process_args()` extracts `--tts-rate`, `--tts-volume`, `--tts-pitch` and
-`--rvc-pitch`, returning `[rate, volume, tts_pitch, rvc_pitch]` and the cleaned text:
+`args[1]` - TTS Volume
 
-```python
-args, message = tts.process_args("Hello --tts-rate -10 --rvc-pitch -2")
-output_path = tts(
-    message, tts_rate=args[0], tts_volume=args[1],
-    tts_pitch=args[2], pitch=args[3],
-)
-```
+`args[2]` - TTS Pitch
 
-## Troubleshooting
+`args[3]` - RVC pitch
 
-- Missing provider: inspect `onnxruntime.get_available_providers()` and your runtime installation.
-- Provider activation failure: check drivers, device ID and runtime compatibility.
-- Model/index mismatch: use the ContentVec and Faiss index expected by your voice model.
-- Audio decoding failure: check FFmpeg and input paths.
-- Unsupported F0 method: choose `pm`, `harvest`, `dio` or ONNX `rmvpe`.
-- In an existing asyncio application, use `async_call()` to avoid blocking its event loop.
+## Methods
 
-## Development and releases
+*   `set_voice(voice)`: Changes the Edge TTS voice.
 
-CI tests Python 3.10–3.12 on Windows and Linux, then builds wheel + sdist.
-The `releases-onnx` branch contains release candidates. Publishing is controlled
-by `PYPI_PUBLISH_ENABLED`; see [release setup and version commands](.github/RELEASING.md).
+*   `set_index_path(index_path)`: Updates the path to the Faiss `.index` file.
 
-## Acknowledgements and license
+*   `set_device(device)`: Changes the ONNX Runtime provider (e.g., 'dml', 'cuda:0', 'cpu') and reinitializes the backend.
 
-Based on the [RVC Project](https://github.com/RVC-Project/).
-Distributed under the [MIT License](LICENSE).
-Maintained by [Atm4x](https://github.com/Atm4x) (Artem Dikarev).
+*   `set_output_directory(directory_path)`: Sets the default directory for saving output files.
+
+*   `process_args(text)`: Extracts text parameters (see above).
+
+*   `voiceover_file(input_path, ...)`: Applies RVC voice conversion directly to an existing audio file (accepts same RVC parameters as `__call__`).
+
+Use `tts.set_sampling_params(sr, hop)` when changing model sampling settings. The constructor also accepts `vec_path` and `random_seed`.
+
+## Exceptions
+
+*   **`RuntimeError: Failed to load ONNX model...`**: Check `.onnx` model path and integrity. Ensure correct `onnxruntime-*` package is installed.
+*   **`RuntimeError: Failed to initialize ONNX backend...`**: Check ONNX Runtime installation, drivers (CUDA/DirectML), or model compatibility.
+*   **`FileNotFoundError`**: Input audio, `.onnx` model, `.index` file, or required predictor models (`rmvpe.onnx`) not found.
+*   **`ValueError: Dimension mismatch...`**: Faiss `.index` file dimension doesn't match `ContentVec` output dimension (e.g., 256 vs 768). Use a compatible index.
+*   **`RuntimeError: Failed to load audio...`**: Ensure FFmpeg is installed and accessible in PATH.
+*   **Errors during F0 computation**: Check if required libraries (`parselmouth`, `pyworld`, and the ONNX Runtime provider for RMVPE) are installed correctly.
+
+## Acknowledgements
+
+*   [RVC Project](https://github.com/RVC-Project/) - For the original RVC model and concepts.
+
+## License
+
+MIT License
+
+## Authors
+
+*   [Atm4x](https://github.com/Atm4x) (Artem Dikarev)

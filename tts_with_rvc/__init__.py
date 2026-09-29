@@ -1,3 +1,5 @@
+__version__ = "0.1.9.3"
+
 __all__ = [
     "TTS_RVC",
     "RVCConverter",

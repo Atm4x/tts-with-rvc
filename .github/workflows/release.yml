@@ -1,0 +1,65 @@
+name: Publish package
+
+on:
+  push:
+    branches: [releases, releases-onnx]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/releases' || github.ref == 'refs/heads/releases-onnx'
+    uses: ./.github/workflows/ci.yml
+    with:
+      release: true
+
+  publish:
+    if: vars.PYPI_PUBLISH_ENABLED == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: ${{ needs.build.outputs.environment }}
+      url: https://pypi.org/project/${{ needs.build.outputs.name }}/${{ needs.build.outputs.version }}/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: python-distributions
+          path: dist
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          attestations: ${{ secrets.PYPI_API_TOKEN == '' }}
+
+  github-release:
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: python-distributions
+          path: dist
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          RELEASE_NAME: ${{ needs.build.outputs.name }} ${{ needs.build.outputs.version }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/* \
+            --target "$RELEASE_SHA" \
+            --title "$RELEASE_NAME" \
+            --generate-notes

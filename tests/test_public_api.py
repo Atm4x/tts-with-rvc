@@ -4,6 +4,11 @@ import sys
 import types
 import unittest
 
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
+
 ROOT = Path(__file__).parents[1]
 
 
@@ -11,7 +16,9 @@ class PublicApiTests(unittest.TestCase):
     def test_package_import_is_lazy(self):
         import tts_with_rvc
 
-        self.assertEqual(tts_with_rvc.__version__, "0.1.9.4")
+        with (ROOT / "pyproject.toml").open("rb") as stream:
+            version = tomllib.load(stream)["project"]["version"]
+        self.assertEqual(tts_with_rvc.__version__, version)
         self.assertIn("TTS_RVC", tts_with_rvc.__all__)
 
     def _load_inference_with_stubs(self):

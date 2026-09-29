@@ -1,0 +1,6 @@
+packaging>=24,<27
+tomli>=2,<3; python_version < "3.11"
+numpy==1.26.4
+scipy>=1.10,<2
+soundfile>=0.12,<1
+huggingface-hub>=0.17,<1

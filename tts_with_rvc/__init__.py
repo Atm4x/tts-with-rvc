@@ -1,5 +1,5 @@
 __all__ = ["TTS_RVC", "OnnxRVCConverter"]
-__version__ = "0.1.9.4"
+__version__ = "0.1.9.5"
 
 
 def __getattr__(name):

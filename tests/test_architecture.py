@@ -25,8 +25,8 @@ class ArchitectureTests(unittest.TestCase):
         self.assertNotIn("np.random.randn", source)
         self.assertNotIn("logger.parent.setLevel", source)
 
-    def test_setup_no_longer_requires_nest_asyncio(self):
-        source = (ROOT / "setup.py").read_text()
+    def test_package_no_longer_requires_nest_asyncio(self):
+        source = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         self.assertNotIn("nest_asyncio", source)
 
 

@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tts-with-rvc-onnx"
+version = "0.1.9.5"
+description = "TTS with RVC pipeline (ONNX Version)"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Atm4x"}]
+keywords = ["tts", "rvc", "voice-conversion", "speech-synthesis"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "edge-tts>=6.1.8",
+    "numpy==1.26.0",
+    "librosa>=0.9.1",
+    "soundfile>=0.12.1",
+    "ffmpeg-python>=0.2.0",
+    "huggingface_hub>=0.17.0",
+    "pyworld>=0.3.2",
+    "setuptools",
+    "onnxruntime>=1.15,<2.0",
+    "faiss-cpu<1.11.0",
+    "torch>=1.13.1",
+    "torchaudio>=0.13.1",
+    "torchcrepe>=0.0.20",
+    "praat-parselmouth>=0.4.3",
+    "scipy>=1.10.0",
+    "cffi<2.0.0"
+]
+
+[project.optional-dependencies]
+cuda = ["onnxruntime-gpu>=1.15,<2.0"]
+dml = ["onnxruntime-directml>=1.15,<2.0"]
+
+[project.urls]
+Homepage = "https://github.com/Atm4x/tts-with-rvc"
+Repository = "https://github.com/Atm4x/tts-with-rvc"
+"Bug Tracker" = "https://github.com/Atm4x/tts-with-rvc/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tts_with_rvc*"]

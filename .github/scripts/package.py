@@ -112,7 +112,7 @@ def set_version(value=None, bump=False):
     updates = []
     for path, pattern, replacement in (
         (paths[0], r'^version[ \t]*=[ \t]*"[^"\n]+"[ \t]*$', f'version = "{new}"'),
-        (paths[1], r'^__version__\s*=\s*[\'"][^\'"\n]+[\'"]\s*$', f'__version__ = "{new}"'),
+        (paths[1], r'^__version__[ \t]*=[ \t]*[\'"][^\'"\n]+[\'"][ \t]*$', f'__version__ = "{new}"'),
     ):
         content, count = re.subn(pattern, replacement, path.read_text(encoding="utf-8"), flags=re.MULTILINE)
         if count != 1:

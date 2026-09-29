@@ -64,6 +64,16 @@ class ReleaseGuardTests(unittest.TestCase):
         self.assertIn('version = "0.1.9.6"', self.metadata.read_text(encoding="utf-8"))
         self.assertEqual(package.runtime_version("tts_with_rvc"), "0.1.9.6")
 
+    def test_version_update_preserves_spacing_and_final_newline(self):
+        self.init.write_text('__version__ = "0.1.9.5"\n\n\ndef example():\n    return 1\n', encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()):
+            package.set_version(bump=True)
+        self.assertEqual(
+            self.init.read_text(encoding="utf-8"),
+            '__version__ = "0.1.9.6"\n\n\ndef example():\n    return 1\n',
+        )
+        self.assertTrue(self.metadata.read_text(encoding="utf-8").endswith("\n"))
+
     def test_invalid_version_does_not_modify_files(self):
         before = (self.metadata.read_bytes(), self.init.read_bytes())
         with self.assertRaises(ValueError):

@@ -1,4 +1,4 @@
-__version__ = "0.1.9.3"
+__version__ = "0.1.10"
 
 __all__ = [
     "TTS_RVC",

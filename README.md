@@ -1,225 +1,218 @@
-# **TTS-with-RVC** 0.1.9
+# TTS-with-RVC 0.1.10
 
-***TTS-with-RVC** (Text-to-Speech with RVC)* is a package designed to enhance the capabilities of *text-to-speech (TTS)* systems by introducing a *RVC* module. The package enables users to not only convert text into speech but also personalize and customize the voice output according to their preferences with RVC support.
+Generate speech with Edge TTS and convert it to a selected voice with a
+PyTorch RVC model. Use a `.pth` voice model and an optional Faiss `.index` file.
 
-Pytorch with CUDA or MPS is required to get TTS-with-RVC work.
-
-**It may contain bugs. Report an issue in case of error.**
+For ONNX models, use [TTS-with-RVC-ONNX](https://github.com/Atm4x/tts-with-rvc/tree/releases-onnx).
+The two packages share the `tts_with_rvc` import name; use a separate Python
+environment for each variant.
 
 ## Release notes
 
-**0.1.9** - March 31, 2025: Some small fixes, fixed fairseq installation for linux. 
+### 0.1.10 — September 30, 2026
 
-**0.1.8** - March 30, 2025: Added all RVC parameters, implemented `FCPE` support, added PyPI installation support, fixed bug with rmvpe-only f0 method.
+- **MultiGPU support:** create independent `TTS_RVC` or `RVCConverter` instances
+  on `cuda:0`, `cuda:1`, and other available GPUs in the same process.
+- Each converter owns its model, runtime configuration and F0 predictor state.
+  Tensor allocation follows the selected device and precision.
+- Device and precision changes rebuild the instance's runtime; failed
+  reconfiguration preserves the previous runtime.
+- Added automatic precision selection using the selected GPU's capabilities,
+  memory-based chunking and explicit `is_half` / `set_precision()` control.
+- Added `generate_async()`, `close()` and context-manager support.
+- Model downloads can be directed to `models_dir`. Temporary TTS files are
+  cleaned up after conversion, including when conversion fails.
+- Package exports are lazy; importing the package does not patch asyncio or
+  change the host application's logger levels.
+- Migrated packaging to `pyproject.toml` and added CI and release workflows.
 
-**0.1.6** - March 28, 2025: Updated all files with the latest RVC commit - 1.5-2x times faster inference. Reduced required packages. ONNX support [here](https://github.com/Atm4x/tts-with-rvc/tree/onnx).
+### Earlier releases
 
-**0.1.5** - February 21, 2025: Removed all unnecessary packages, **Removed** `rvc_path`, Added `f0_method` for more control.
+- **0.1.9.2 — September 17, 2025:** constrained CFFI to a compatible version.
+- **0.1.9 — March 31, 2025:** fixes including fairseq installation on Linux.
+- **0.1.8 — March 30, 2025:** more RVC controls, FCPE support and PyPI installation.
+- **0.1.6 — March 28, 2025:** updated RVC inference and reduced dependencies.
+- **0.1.5 — February 21, 2025:** removed `rvc_path` and added F0 selection.
+- **0.1.4 — November 22, 2024:** added index path and blending controls.
 
-**0.1.4** - November 22, 2024: Added `index_path` and `index_rate` parameters for more control over index-based voice conversion.
+## Requirements and installation
 
-**0.1.3** - fixed a lot problems, some optimization. 
+- Python 3.10, 3.11 or 3.12.
+- PyTorch installed for your platform. NVIDIA CUDA is recommended; CPU is
+  available, and the runtime also supports MPS device selection.
+- FFmpeg installed and accessible through `PATH`.
+- A compatible RVC `.pth` model and, optionally, its `.index` file.
+- Network access for Edge TTS and for downloading missing auxiliary models.
 
-## Prerequisites
+Install PyTorch using the [official guide](https://pytorch.org/get-started/locally/), then:
 
-You must have **Python<=3.12** installed (3.12 is recommended, mostly tested on 3.10).
-
-You must have **CUDA or MPS** support for your GPU (mps is not tested yet). Otherwise it will use CPU, which is very slow.
-
-## **Installation**
-1) Install pytorch **with CUDA or MPS support** here: https://pytorch.org/get-started/locally/
-
-2) Then, install TTS-with-RVC using pip install:
-```
+```bash
 pip install tts-with-rvc
 ```
-3) And finally, install [ffmpeg](https://ffmpeg.org/download.html) if you don't already have one, and add it to the folder with your script **or better yet** add ffmpeg to the `Environment variables` in `Path`. 
 
-## How it Works
-1. **Text-to-Speech (TTS):** Users enter text into the TTS module, which then processes it and generates the corresponding speech as a file saved in the temp directory
-2. **RVC:** With .pth file provided, RVC module reads the generated audio file, processes it and generates an new audio saved in *output_directory* with voice replaced.
+To install the current release branch before its PyPI publication:
 
-## Usage
+```bash
+pip install "git+https://github.com/Atm4x/tts-with-rvc.git@releases"
+```
 
-TTS-with-RVC has a class called `TTS_RVC`. There are a few parameters that are required:
+For local development, run `pip install -e .` from the repository root.
 
-`model_path` - path to your .pth model
-
-And optional parameters:
-
-`voice` - voice from edge-tts list *(default is "ru-RU-DmitryNeural")*
-
-`device` - set device ("cpu", "cuda:0", "mps:0", *default is "cuda:0"*)
-
-`tmp_directory` - path to TTS input directory (Temp directory for saving TTS output, default is Temp folder)
-
-`output_directory` - directory for saving voiced audio (`temp/` is default).
-
-`index_path` - path to the file index for voice model adjustments (default is empty string `""`).
-
-`index_rate` - blending rate between original and indexed voice conversion (default is `0.75`).
-
-`f0_method` - method for calculating the pitch of the audio (default is `rmvpe`). Available: 'rmvpe', 'fcpe' (fp32 only), 'pm', 'harvest', 'dio', 'crepe'.
-
-Deprecated:
-
-`input_directory` - path to TTS input directory (Temp directory for saving TTS output, default is None)
-
-
-
-To set the voice, firstly, make instance of TTS_RVC:
+## Basic usage
 
 ```python
 from tts_with_rvc import TTS_RVC
 
-tts = TTS_RVC(model_path="models\\YourModel.pth",
-                index_path="logs\\YourIndex.index",
-                f0_method="rmvpe")
+with TTS_RVC(
+    model_path="models/voice.pth",
+    device="cuda:0",
+    voice="ru-RU-DmitryNeural",
+    output_directory="output",
+) as tts:
+    output_path = tts(text="Hello, world!", pitch=0)
+    print(output_path)
 ```
 
+Pass `index_path="models/voice.index"` to enable index blending. A missing index
+is disabled with a warning. The result is the path to the converted audio file.
 
-All voices available placed in `voices.txt` file:
+## MultiGPU
 
-`tts.get_voices()` **is disabled indefinitely due to the problems**
-
-Next, set the voice for TTS with `tts.set_voice()` function:
+Each instance uses one GPU and owns its model state. Create one instance per
+device and distribute requests from your application:
 
 ```python
-tts.set_voice("un-Un-SelectedNeural")
+from concurrent.futures import ThreadPoolExecutor
+from tts_with_rvc import TTS_RVC
+
+with TTS_RVC(
+    model_path="models/voice.pth",
+    device="cuda:0",
+    output_directory="output/gpu0",
+) as first, TTS_RVC(
+    model_path="models/voice.pth",
+    device="cuda:1",
+    output_directory="output/gpu1",
+) as second:
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        jobs = [
+            pool.submit(first, "First request."),
+            pool.submit(second, "Second request."),
+        ]
+        output_paths = [job.result() for job in jobs]
+        print(output_paths)
 ```
 
-Setting the appropriate language is necessary if you are using other languages for voiceovers!
+A bare `"cuda"` selects `cuda:0`. With `device=None`, the runtime selects CUDA,
+then MPS, then CPU according to availability. An explicitly requested unavailable
+device raises an error. Each GPU needs enough memory for its own model state.
+Use separate instances for parallel conversion; an individual converter locks
+its conversion operations.
 
-And final step is calling `tts` to replace voice:
+## Async usage
 
-```python 
-path = tts(text="Привет, мир!", pitch=6, index_rate=0.50)
+```python
+import asyncio
+from tts_with_rvc import TTS_RVC
+
+async def main():
+    with TTS_RVC(model_path="models/voice.pth", device="cuda:0") as tts:
+        output_path = await tts.generate_async("Hello from an async application.")
+        print(output_path)
+
+asyncio.run(main())
 ```
 
-Parameters:
+## Constructor options
 
-`text` - text for TTS (required)
+| Option | Default | Purpose |
+|---|---|---|
+| `model_path` | required | RVC `.pth` model |
+| `device` | `None` | Automatic selection, `"cuda:N"`, `"cpu"` or `"mps"` |
+| `voice` | `"ru-RU-DmitryNeural"` | Edge TTS voice |
+| `index_path` | `""` | Optional Faiss index |
+| `f0_method` | `"rmvpe"` | `rmvpe`, `fcpe`, `pm`, `harvest`, `dio` or `crepe` |
+| `is_half` | `None` | Automatic precision; `True` for FP16, `False` for FP32 |
+| `models_dir` | `None` | Location for downloaded auxiliary models |
+| `tmp_directory` | `None` | Temporary Edge TTS audio directory; defaults to system temp |
+| `output_directory` | `None` | Converted audio directory; defaults to `temp` relative to the working directory |
 
-`pitch` - pitch change (transpose) for RVC in semitones (optional, neg. values are compatible, default is 0)
+`input_directory` is deprecated; use `tmp_directory`.
+Automatic precision uses FP32 on CPU/MPS and chooses precision from CUDA
+capabilities on NVIDIA GPUs. CPU FP16 is rejected. FCPE uses FP32 internally.
 
-`tts_rate` - extra rate of speech for Edge TTS in percentage (+-) (optional, neg. values are compatible, default is 0)
+## Conversion controls
 
-`tts_volume` - extra volume of speech for Edge TTS in percentage (+-) (optional, neg. values are compatible, default is 0)
+`tts(text, ...)` and `await tts.generate_async(text, ...)` accept:
 
-`tts_pitch` - extra pitch of TTS-generated audio in Hz (+-) (optional, neg. values are compatible, <b>not recommended</b>, default is 0)
+| Option | Default | Purpose |
+|---|---|---|
+| `pitch` | `0` | RVC pitch shift in semitones |
+| `tts_rate`, `tts_volume`, `tts_pitch` | `0` | Edge TTS rate/volume percentages and pitch in Hz |
+| `output_filename` | `None` | Output name; a unique name is generated by default |
+| `index_rate` | `0.75` | Index blending strength |
+| `is_half` | `None` | Use the instance's precision policy or override it |
+| `f0method` | `None` | Override the instance's F0 method for this call |
+| `file_index2` | `""` | Secondary index path |
+| `filter_radius` | `3` | Pitch median-filter control |
+| `resample_sr` | `0` | Output resampling; zero retains the model rate |
+| `rms_mix_rate` | `0.5` | Output volume-envelope blending |
+| `protect` | `0.33` | Unvoiced-consonant protection; `0.5` disables protection |
+| `verbose` | `False` | Conversion logging |
 
-`output_filename` - name for the output file (optional, default is `None`, a unique name is generated)
+## Model, device and voice changes
 
-`index_rate` - blending rate between original and indexed voice conversion (0 to 1) (optional, default is `0.75`).
+- `tts.set_voice(voice)` changes the Edge TTS voice.
+- `tts.set_index_path(path)` changes the index.
+- `tts.set_model(path)` selects the RVC model for subsequent calls.
+- `tts.device = "cuda:1"` changes the device by replacing the runtime.
+- `tts.set_precision(None)` restores automatic precision; pass `False` for FP32.
+- `tts.set_output_directory(path)` changes the output directory.
+- `tts.close()` releases converter resources. A `with` block closes automatically.
 
-`is_half` - Determines half-precision for RVC inference. True or False. (optional, default is `True`).
-
-`f0method` - F0 extraction method for this specific call, overrides the instance default: 'rmvpe', 'fcpe' (fp32 only), 'pm', 'harvest', 'dio', 'crepe'. (optional, default uses instance setting).
-
-`file_index2` - Path to secondary index file for RVC. (optional, default is empty string `""`).
-
-`filter_radius` - Median filter radius for pitch results. Values >=3 reduce breathiness. (optional, default is `3`).
-
-`resample_sr` - Sample rate to resample audio to before RVC. 0 means no resampling. (optional, default is `0`).
-
-`rms_mix_rate` - Volume envelope scaling (0-1). Lower values mimic original volume more closely. (optional, default is `0.5`).
-
-`protect` - Protection for voiceless consonants and breaths (0-1). Lower values increase protection. 0.5 disables. (optional, default is `0.33`).
-
-`verbose` - Enable verbose logging for RVC conversion. (optional, default is `False`).
-
-
-
-## Example of usage
-A simple example for voicing text:
+For conversion of existing audio without Edge TTS:
 
 ```python
 from tts_with_rvc import TTS_RVC
-from playsound import playsound
 
-tts = TTS_RVC(
-    model_path="models\\DenVot13800.pth",
-    index_path="logs\\added_IVF1749_Flat_nprobe_1.index"
-)
-
-tts.set_voice("ru-RU-DmitryNeural")
-path = tts(text="Привет, мир!", pitch=6, index_rate=0.9)
-
-# Normalize path for playsound if needed (example)
-# path = path.replace("\\\\", "/").replace("\\","/")
-
-playsound(path)
+with TTS_RVC(model_path="models/voice.pth", device="cuda:0") as tts:
+    output_path = tts.voiceover_file("input.wav", filename="converted.wav")
 ```
+
+For lower-level integrations, `RVCConverter` provides an instance-owned converter;
+`rvc_convert` remains available as a convenience function.
+Voice discovery is exposed as the async module-level function `get_voices()`.
+
 ## Text parameters
 
-There are some text parameters processor for integration issues such as adding GPT module.
-
-You can process them using `process_args` in `TTS_RVC` class:
-
-`--tts-rate (value)` - TTS parameter to edit the speech rate (negative value for decreasing rate and positive value for increasing rate)
-
-`--tts-volume (value)` - TTS parameter to edit the speech volume (negative value for decreasing volume and positive value for increasing volume) <b>Seems to not work because of the RVC module conversion.</b>
-
-`--tts-pitch (value)` - TTS parameter to edit the pitch of TTS generated audio (negative value for decreasing pitch and positive value for increasing pitch) <b>I do not recommend using this because the RVC module has its own `pitch` for output.</b>
-
-`--rvc-pitch (value)` - RVC parameter to edit the pitch of the output audio (negative value for decreasing pitch and positive value for increasing pitch)
-
-Now the principle of work:
+`process_args()` extracts `--tts-rate`, `--tts-volume`, `--tts-pitch` and
+`--rvc-pitch` from text, returning `[rate, volume, tts_pitch, rvc_pitch]` and
+the cleaned message:
 
 ```python
-from tts_with_rvc import TTS_RVC
-
-tts = TTS_RVC(model_path="models\\YourModel.pth")
-
-# This method returns arguments and original text without these text parameters
-args, message = tts.process_args(message)
+args, message = tts.process_args("Hello --tts-rate -10 --rvc-pitch -2")
+output_path = tts(
+    message, tts_rate=args[0], tts_volume=args[1],
+    tts_pitch=args[2], pitch=args[3],
+)
 ```
 
-The `args` variable contains an array with the following structure:
+## Troubleshooting
 
-`args[0]` - TTS Rate
+- Unavailable CUDA device: check the device index and install a CUDA-enabled PyTorch build.
+- Audio decoding errors: check FFmpeg and the input audio path.
+- Model or index errors: check paths and compatibility with the selected RVC model.
+- In an existing asyncio application, use `generate_async()` to avoid blocking its event loop.
 
-`args[1]` - TTS Volume
+## Development and releases
 
-`args[2]` - TTS Pitch
+CI tests Python 3.10–3.12 on Windows and Linux, then builds wheel + sdist.
+The `releases` branch contains release candidates. PyPI publishing is enabled
+with `PYPI_PUBLISH_ENABLED=true` after configuring a token or Trusted Publisher.
+See [release setup and version commands](.github/RELEASING.md).
 
-`args[3]` - RVC pitch
+## Acknowledgements and license
 
-And now we are ready to use it for generation:
-```python
-path = tts(message, tts_rate=args[0], 
-                    tts_volume=args[1], 
-                    tts_pitch=args[2],
-                    pitch=args[3])
-```
-
-### Methods
-
-`set_index_path(index_path)` - updates the path to the index file for voice model adjustments. 
-
-`voiceover_file(path)` - voiceovers the file at the specified path without TTS.
-
-
-## Exceptions
-1) NameError:
-```NameError: name 'device' is not defined```
-
-Be sure your device supports CUDA and you installed right version of Torch.
-
-2) RuntimeError:
-```RuntimeError: Failed to load audio: {e}```
-
-Be sure you installed `ffmpeg`.
-
-## Acknowledgements
-[RVC Project](https://github.com/RVC-Project/) - for RVC
-
-
-## License
-MIT License
-
-## Authors
-[Atm4x](https://github.com/Atm4x) (Artem Dikarev)
-
-
-
+Based on the [RVC Project](https://github.com/RVC-Project/).
+Distributed under the [MIT License](LICENSE).
+Maintained by [Atm4x](https://github.com/Atm4x) (Artem Dikarev).

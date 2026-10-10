@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tts-with-rvc"
-version = "0.1.10"
+version = "0.1.10.1"
 description = "TTS with RVC pipeline"
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
@@ -39,6 +39,8 @@ dependencies = [
     "cffi<2.0.0",
     "einops",
     "local_attention",
+    "hydra-core>=1.3.2,<1.4",
+    "omegaconf>=2.2,<2.4",
     "fairseq-built; sys_platform == 'win32' and python_version >= '3.10' and python_version < '3.13'",
     "fairseq-fixed; sys_platform != 'win32' or python_version < '3.10' or python_version >= '3.13'"
 ]
